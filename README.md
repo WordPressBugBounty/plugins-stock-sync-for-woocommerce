@@ -1,0 +1,1 @@
+# plugins-stock-sync-for-woocommerce
