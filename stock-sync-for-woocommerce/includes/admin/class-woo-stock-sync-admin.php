@@ -174,7 +174,10 @@ class Woo_Stock_Sync_Admin {
 			wp_send_json( null, 200 );
 		}
 
-		$page = intval( $_POST['page'] );
+		$skip_product_id = false;
+		$skip_product_title = false;
+
+		$offset = intval( $_POST['offset'] );
 		$limit = intval( $_POST['limit'] );
 		$site = wss_site_by_key( $_POST['site_key'] );
 
@@ -185,34 +188,47 @@ class Woo_Stock_Sync_Admin {
 
 		$query = wss_product_query( [
 			'limit' => $limit,
-			'page' => $page,
+			'offset' => $offset,
 			'paginate' => true,
 			'type' => wss_product_types( [ 'variation' ] ),
 		] );
 
 		$results = $query->get_products();
 
-		$request = new Woo_Stock_Sync_Api_Request();
+		$data = [];
+		foreach ( $results->products as $product ) {
+			if ( ! apply_filters( 'woo_stock_sync_should_sync', true, $product, 'stock_qty' ) ) {
+				continue;
+			}
 
-		if ( $request->update( $site, $results->products ) ) {
+			$data[] = $product;
+
+			$skip_product_id = $product->get_id();
+			$skip_product_title = $product->get_name();
+		}
+
+		$request = new Woo_Stock_Sync_Api_Request();
+		if ( empty( $data ) || $request->update( $site, $data ) ) {
 			wp_send_json( [
 				'status' => 'processed',
 				'total' => $results->total,
-				'pages' => $results->max_num_pages,
-				'page' => $page,
-				'last_page' => $results->max_num_pages == $page,
 				'count' => count( $results->products ),
-			], 200 );
-		} else if ( ! empty( $request->errors ) ) {
-			wp_send_json( [
-				'status' => 'error',
-				'errors' => array_values( $request->errors )
 			], 200 );
 		}
 
+		$error_data = [
+			'code' => $request->response ? $request->response->getCode() : 'N/A',
+			'headers' => $request->response ? $request->response->getHeaders() : [],
+			'body' => $request->response ? $request->response->getBody() : 'N/A',
+		];
+
 		wp_send_json( [
 			'status' => 'error',
-		], 422 );
+			'errors' => array_values( $request->errors ),
+			'error_data' => $error_data,
+			'skip_product_id' => $skip_product_id,
+			'skip_product_title' => $skip_product_title,
+		], 200 );
 	}
 
 	/**
@@ -254,9 +270,16 @@ class Woo_Stock_Sync_Admin {
 			wp_send_json( wss_product_to_json( $product, true ), 200 );
 		}
 
+		$error_data = [
+			'code' => $request->response ? $request->response->getCode() : 'N/A',
+			'headers' => $request->response ? $request->response->getHeaders() : [],
+			'body' => $request->response ? $request->response->getBody() : 'N/A',
+		];
+
 		wp_send_json( [
-			'errors' => $request->errors,
-		], 422 );
+			'errors' => array_values( $request->errors ),
+			'error_data' => $error_data,
+		], 200 );
 	}
 
 	/**
@@ -269,9 +292,12 @@ class Woo_Stock_Sync_Admin {
 			http_response_code( 403 );
 			die( 'Permission denied' );
 		}
+
+		$skip_product_id = false;
+		$skip_product_title = false;
 		
 		$site = wss_site_by_key( $_POST['site_key'] );
-		$page = intval( $_POST['page'] );
+		$offset = intval( $_POST['offset'] );
 		$limit = intval( $_POST['limit'] );
 
 		if ( ! $site ) {
@@ -283,7 +309,7 @@ class Woo_Stock_Sync_Admin {
 
 		$query = wss_product_query( [
 			'limit' => $limit,
-			'page' => $page,
+			'offset' => $offset,
 			'paginate' => true,
 			'type' => wss_product_types( [ 'variation' ] ),
 		] );
@@ -291,56 +317,42 @@ class Woo_Stock_Sync_Admin {
 		$results = $query->get_products();
 
 		$data = [];
-		foreach ( $results->products as $key => $product ) {
-			if ( apply_filters( 'woo_stock_sync_should_sync', true, $product, 'stock_qty' ) ) {
-				$data[] = [
-					'product' => $product,
-					'operation' => 'set',
-					'value' => $product->get_stock_quantity( 'edit' ),
-				];
+		foreach ( $results->products as $product ) {
+			if ( ! apply_filters( 'woo_stock_sync_should_sync', true, $product, 'stock_qty' ) ) {
+				continue;
 			}
+
+			$data[] = [
+				'product' => $product,
+				'operation' => 'set',
+				'value' => $product->get_stock_quantity( 'edit' ),
+			];
+
+			$skip_product_id = $product->get_id();
+			$skip_product_title = $product->get_name();
 		}
 
-		if ( $request->push_multiple( $data, $site ) ) {
-			echo json_encode( [
+		if ( empty( $data ) || $request->push_multiple( $data, $site ) ) {
+			wp_send_json( [
 				'status' => 'processed',
 				'total' => $results->total,
-				'pages' => $results->max_num_pages,
-				'page' => $page,
-				'last_page' => $results->max_num_pages == $page,
 				'count' => count( $results->products ),
-			] );
-
-			die;
-		} else if ( ! empty( $request->errors ) ) {
-			$error_data = [
-				'code' => __( 'N/A', 'woo-stock-sync' ),
-				'headers' => [],
-				'body' => __( 'N/A', 'woo-stock-sync' ),
-			];
-			if ( ! empty( $request->errors ) && $request->response ) {
-				$error_data = wp_parse_args( [
-					'code' => $request->response->getCode(),
-					'headers' => $request->response->getHeaders(),
-					'body' => $request->response->getBody(),
-				], $error_data );
-			}	
-
-			echo json_encode( [
-				'status' => 'error',
-				'errors' => array_values( $request->errors ),
-				'error_data' => $error_data,
-			] );
-
-			die;
+			], 200 );
 		}
 
-		http_response_code( 422 );
+		$error_data = [
+			'code' => $request->response ? $request->response->getCode() : 'N/A',
+			'headers' => $request->response ? $request->response->getHeaders() : [],
+			'body' => $request->response ? $request->response->getBody() : 'N/A',
+		];
 
-		echo json_encode( [
+		wp_send_json( [
 			'status' => 'error',
-		] );
-		die;
+			'errors' => array_values( $request->errors ),
+			'error_data' => $error_data,
+			'skip_product_id' => $skip_product_id,
+			'skip_product_title' => $skip_product_title,
+		], 200 );
 	}
 
 	/**

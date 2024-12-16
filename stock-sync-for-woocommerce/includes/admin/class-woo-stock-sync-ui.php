@@ -10,7 +10,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Woo_Stock_Sync_Ui {
 	private $_pagination_args;
 	private $_pagination;
-	private $sites;
 
 	/**
 	 * Constructor
@@ -94,7 +93,6 @@ class Woo_Stock_Sync_Ui {
 		$urls = $this->urls();
 
 		$sites = array_values( woo_stock_sync_sites() );
-		$this->sites = $sites;
 
 		$per_page = 20;
 
@@ -149,12 +147,13 @@ class Woo_Stock_Sync_Ui {
 		$urls = $this->urls();
 
 		$sites = woo_stock_sync_sites();
-		$this->sites = $sites;
 
 		$query = wss_product_query();
 		$query->set( 'page', 1 );
 		$query->set( 'limit', 100 );
 		$query->set( 'paginate', false );
+		$query->set( 'orderby', 'title' );
+		$query->set( 'order', 'ASC' );
 
 		do_action( 'woo_stock_sync_report_query', $query, $this );
 
@@ -169,11 +168,28 @@ class Woo_Stock_Sync_Ui {
 
 		$status_filter = 'all';
 		if ( isset( $_GET['wss_status'] ) ) {
-			if ( $_GET['wss_status'] === 'mismatch' ) {
-				$status_filter = 'mismatch';
-				$query->set( '_wss_stock_mismatch', true );
+			$filters = [ 'mismatch' ];
+			foreach ( woo_stock_sync_sites() as $site ) {
+				$filters[] = 'present_' . $site['key'];
+				$filters[] = 'not_present_' . $site['key'];
+			}
+
+			if ( in_array( $_GET['wss_status'], $filters, true ) ) {
+				$status_filter = $_GET['wss_status'];
+				$query->set( 'type', array_merge( $query->get( 'type' ), [ 'variation' ] ) );
+
+				if ( $status_filter === 'mismatch' ) {
+					$query->set( '_wss_stock_mismatch', true );
+				} else if ( strpos( $status_filter, 'not_present_' ) === 0 ) {
+					$query->set( '_wss_not_present', true );
+					$query->set( '_wss_site_key', str_replace( 'not_present_', '', $status_filter ) );
+				} else if ( strpos( $status_filter, 'present_' ) === 0 ) {
+					$query->set( '_wss_present', true );
+					$query->set( '_wss_site_key', str_replace( 'present_', '', $status_filter ) );
+				}
 			}
 		}
+		$variations_included = in_array( 'variation', $query->get( 'type' ), true );
 
 		$results = $query->get_products();
 
@@ -181,26 +197,30 @@ class Woo_Stock_Sync_Ui {
 		$total_items = $query->get( 'paginate' ) ? $results->total : count( $results );
 		$pages = $query->get( 'paginate' ) ? $results->max_num_pages : 1;
 
-		$this->set_pagination_args( array(
+		$this->set_pagination_args( [
 			'total_items' => $total_items,
 			'per_page' => $query->get( 'limit' ),
 			'total_pages' => $pages,
-		) );
+		] );
 		
-		$products_with_children = array();
-		foreach ( $products as $key => $product ) {
-			$products_with_children[] = $product;
-
-			if ( $product->get_type() === 'variable' ) {
-				foreach ( $product->get_children() as $children ) {
-					$children = wc_get_product( $children );
-					if ( ! $children || ! $children->exists() ) {
-						continue;
+		if ( ! $variations_included ) {
+			$products_with_children = [];
+			foreach ( $products as $product ) {
+				$products_with_children[] = $product;
+	
+				if ( $product->get_type() === 'variable' ) {
+					foreach ( $product->get_children() as $children ) {
+						$children = wc_get_product( $children );
+						if ( ! $children || ! $children->exists() ) {
+							continue;
+						}
+	
+						$products_with_children[] = $children;
 					}
-
-					$products_with_children[] = $children;
 				}
 			}
+		} else {
+			$products_with_children = $products;
 		}
 
 		// Check when the last update was done
@@ -211,7 +231,9 @@ class Woo_Stock_Sync_Ui {
 			$last_updated = sprintf( __( '%s ago (%s)', 'woo-stock-sync' ), human_time_diff( $last_updated ), wss_format_datetime( $last_updated ) );
 		}
 		
-		$products_json = array_map( 'wss_product_to_json', $products_with_children );
+		$products_json = array_map( function( $product ) use ( $variations_included ) {
+			return wss_product_to_json( $product, false, ! $variations_included );
+		}, $products_with_children );
 
 		// Show error msg if there is more than 100 products
 		$product_count = (array) wp_count_posts( 'product' );

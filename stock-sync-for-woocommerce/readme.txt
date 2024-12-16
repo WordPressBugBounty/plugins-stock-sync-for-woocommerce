@@ -2,9 +2,9 @@
 Contributors: wooelements
 Tags: woocommerce, stock synchronization, shared stock
 Requires at least: 4.5
-Tested up to: 6.5
+Tested up to: 6.7
 Requires PHP: 7.0
-Stable tag: 2.7.0
+Stable tag: 2.8.0
 License: GPLv2
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -63,6 +63,16 @@ Stock Sync is installed just like any other WordPress plugin.
 Once the plugin is activated, you need to set up API credentials and import stock quantities from one store to the other. Please see [the documentation](https://wptrio.com/guide/getting-started-with-woocommerce-stock-sync-pro/).
 
 == Changelog ==
+
+= 2.8.0 =
+
+* Stock management for the product will be automatically enabled on the receiving website if it is currently turned off
+* The products report can now be filtered based on whether products exist on a specific site (**WooCommerce > Stock Sync > Products**)
+* Added **Number of items per page** screen option to the products report
+* Included drafts to the products report
+* Additional connection test to the API Check
+* Pushing a single product will now display a proper error message if syncing fails
+* **Push All** and **Update Report** tools now retry from the last point instead of from the beginning
 
 = 2.7.0 =
 

@@ -77,6 +77,14 @@ class Woo_Stock_Sync_Api_Check {
 						return;
 					}
 
+					// Ignore redirect by Polylang and WPML
+					$redirect_by = strval( wp_remote_retrieve_header( $response, 'x-redirect-by' ) );
+					$is_polylang = strpos( strtolower( $redirect_by ), 'polylang' ) !== false;
+					$is_wpml = strpos( strtolower( $redirect_by ), 'wpml' ) !== false;
+					if ( $is_polylang || $is_wpml ) {
+						return;
+					}
+
 					$this->errors[] = sprintf( __( '<strong>%s</strong> is redirecting to <strong>%s</strong>. Please use <strong>%s</strong> as the URL.', 'woo-stock-sync' ), $this->url, $location, $location );
 				} else {
 					$headers = wp_remote_retrieve_headers( $response );

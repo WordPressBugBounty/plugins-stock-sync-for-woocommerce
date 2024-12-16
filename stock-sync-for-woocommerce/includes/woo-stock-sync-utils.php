@@ -66,7 +66,7 @@ function wss_product_types( $incl = [] ) {
  */
 function wss_product_query( $params = [] ) {
 	$query = new WC_Product_Query();
-	$query->set( 'status', array( 'publish', 'private' ) );
+	$query->set( 'status', [ 'publish', 'private', 'draft' ] );
 	$query->set( 'type', wss_product_types() );
 	$query->set( 'order', 'ASC' );
 	$query->set( 'orderby', 'ID' );
@@ -78,15 +78,36 @@ function wss_product_query( $params = [] ) {
 	return $query;
 }
 
-add_filter( 'woocommerce_product_data_store_cpt_get_products_query', 'wss_stock_mismatch_query', 10, 3 );
-function wss_stock_mismatch_query( $wp_query_args, $query_vars, $data_store_cpt ) {
-	$meta_key = '_wss_stock_mismatch';
-
-	if ( ! empty( $query_vars[$meta_key] ) ) {
+add_filter( 'woocommerce_product_data_store_cpt_get_products_query', 'wss_product_queries', 10, 3 );
+function wss_product_queries( $wp_query_args, $query_vars, $data_store_cpt ) {
+	// Mismatch query
+	if ( ! empty( $query_vars['_wss_stock_mismatch'] ) ) {
 		$wp_query_args['meta_query'][] = [
 			'key' => '_woo_stock_sync_data',
 			'value' => '"status";s:8:"mismatch"',
 			'compare' => 'LIKE',
+		];
+	}
+
+	// Present on site query
+	if ( ! empty( $query_vars['_wss_present'] ) ) {
+		$site_key = $query_vars['_wss_site_key'];
+
+		$wp_query_args['meta_query'][] = [
+			'key' => sprintf( '_wss_status_%s', $site_key ),
+			'value' => 'present',
+			'compare' => '=',
+		];
+	}
+
+	// Not present on site query
+	if ( ! empty( $query_vars['_wss_not_present'] ) ) {
+		$site_key = $query_vars['_wss_site_key'];
+
+		$wp_query_args['meta_query'][] = [
+			'key' => sprintf( '_wss_status_%s', $site_key ),
+			'value' => 'not_present',
+			'compare' => '=',
 		];
 	}
 
@@ -324,14 +345,17 @@ function wss_site_by_key( $key ) {
 /**
  * Reset stock sync status for a product
  */
-function wss_reset_sync_status( $product_id, $site_key, $not_found = false ) {
+function wss_reset_sync_status( $product_id, $site_key ) {
 	$data = (array) get_post_meta( $product_id, '_woo_stock_sync_data', true );
 
-	$data[$site_key] = [
-		'not_found' => $not_found,
-	];
+	$data[$site_key] = [];
 
 	update_post_meta( $product_id, '_woo_stock_sync_data', $data );
+
+	// Also save status to separate meta row to ease
+	// status filtering. In future it would be wise
+	// to atomize all data instead of serialized blob
+	update_post_meta( $product_id, '_wss_status_' . $site_key, 'not_present' );
 
 	return true;
 }
@@ -363,10 +387,15 @@ function wss_update_ext_qty( $product, $site_key, $ext_qty, $ext_id, $ext_name, 
 		'name' => $ext_name,
 		'qty' => $ext_qty,
 		'parent_id' => $ext_parent_id,
-		'status' => ( $ext_qty != $product->get_stock_quantity( 'edit' ) ) ? 'mismatch' : 'ok'
+		'status' => ( $ext_qty != $product->get_stock_quantity( 'edit' ) ) ? 'mismatch' : 'ok',
 	];
 
 	update_post_meta( $product_id, '_woo_stock_sync_data', $data );
+
+	// Also save status to separate meta row to ease
+	// status filtering. In future it would be wise
+	// to atomize all data instead of serialized blob
+	update_post_meta( $product_id, '_wss_status_' . $site_key, 'present' );
 }
 
 /**
@@ -405,14 +434,14 @@ function wss_update_mismatch_data( $product, $site_key ) {
 function wss_get_site_keys() {
 	return array_map( function( $site ) {
 		return $site['key'];
-	}, Woo_stock_sync_sites() );
+	}, woo_stock_sync_sites() );
 }
 
 /**
  * Get other sites which are to be sync
  */
 function woo_stock_sync_sites() {
-	$sites = array();
+	$sites = [];
 
 	for ( $i = 0; $i < apply_filters( 'woo_stock_sync_supported_api_credentials', 1 ); $i++ ) {
 		$url = woo_stock_sync_api_credentials_field_value( 'woo_stock_sync_url', $i );
@@ -421,7 +450,7 @@ function woo_stock_sync_sites() {
 		$api_secret = woo_stock_sync_api_credentials_field_value( 'woo_stock_sync_api_secret', $i );
 
 		if ( ! empty( $url ) && ! empty( $api_key ) && ! empty( $api_secret ) ) {
-			$sites[$i] = array(
+			$sites[$i] = [
 				'i' => $i,
 				'key' => sanitize_key( $url ),
 				'url' => $url,
@@ -429,7 +458,7 @@ function woo_stock_sync_sites() {
 				'letter' => strtoupper( substr( $formatted_url, 0, 1 ) ),
 				'api_key' => $api_key,
 				'api_secret' => $api_secret,
-			);
+			];
 		}
 	}
 
@@ -479,31 +508,10 @@ function woo_stock_sync_api_credentials_field_value( $name, $i, $default = '' ) 
 /**
  * Converts products into JSON suitable for Vue.js
  */
-function wss_product_to_json( $product, $flush_cache = false ) {
+function wss_product_to_json( $product, $flush_cache = false, $variation_indent = true ) {
 	if ( $flush_cache ) {
 		// Flush post meta cache for this product so we get fresh quantities
 		wp_cache_delete( $product->get_id(), 'post_meta' );
-	}
-
-	$sku = $product->get_sku( 'edit' );
-
-	if ( $product->get_type() === 'variation' ) {
-		$title = str_repeat( '&nbsp;', 5 ) . wc_get_formatted_variation( $product, $flat = true, $include_names = false, $skip_attributes_in_name = false );
-		
-		if ( strlen( $sku ) > 0 ) {
-			$title = sprintf( '%s (%s)', $title, $sku );
-		}
-	} else {
-		$name = $product->get_name();
-		if ( strlen( $sku ) > 0 ) {
-			$name = sprintf( '%s (%s)', $name, $sku );
-		}
-
-		$title = sprintf(
-			'<a href="%s" target="_blank">%s</a>',
-			wss_product_url( $product->get_id() ),
-			$name
-		);
 	}
 
 	$sites_qty = [];
@@ -513,38 +521,32 @@ function wss_product_to_json( $product, $flush_cache = false ) {
 			'url' => null,
 			'qty' => null,
 			'processing' => false,
-			'not_found' => false,
 		];
 
-		if ( isset( $data[$site['key']] ) && $data[$site['key']] ) {
-			if ( isset( $data[$site['key']]['id'] ) ) {
-				$url_id = $data[$site['key']]['id'];
-				if ( $data[$site['key']]['parent_id'] ) {
-					$url_id = $data[$site['key']]['parent_id'];
-				}
-
-				$ext_url = add_query_arg( [
-					'post' => $url_id,
-					'action' => 'edit',
-				], $site['url'] . '/wp-admin/post.php' );
-	
-				$site_data = [
-					'id' => $data[$site['key']]['id'],
-					'url' => $ext_url,
-					'qty' => $data[$site['key']]['qty'],
-					'processing' => false,
-					'not_found' => false,
-				];
-			} else if ( isset( $data[$site['key']]['not_found'] ) && $data[$site['key']]['not_found'] ) {
-				$site_data['not_found'] = true;
+		if ( isset( $data[$site['key']], $data[$site['key']]['id'] ) ) {
+			$url_id = $data[$site['key']]['id'];
+			if ( $data[$site['key']]['parent_id'] ) {
+				$url_id = $data[$site['key']]['parent_id'];
 			}
+
+			$ext_url = add_query_arg( [
+				'post' => $url_id,
+				'action' => 'edit',
+			], $site['url'] . '/wp-admin/post.php' );
+
+			$site_data = [
+				'id' => $data[$site['key']]['id'],
+				'url' => $ext_url,
+				'qty' => $data[$site['key']]['qty'],
+				'processing' => false,
+			];
 		}
 
 		$sites_qty[$site['key']] = $site_data;
 	}
 
 	return [
-		'title' => $title,
+		'title' => wss_get_product_title( $product, $variation_indent ),
 		'id' => $product->get_id(),
 		'sku' => $product->get_sku( 'edit' ),
 		'qty' => $product->get_stock_quantity( 'edit' ),
@@ -554,6 +556,40 @@ function wss_product_to_json( $product, $flush_cache = false ) {
 		'status' => 'default',
 		'status_qty' => 'default',
 	];
+}
+
+/**
+ * Get product title by ID
+ */
+function wss_get_product_title( $product, $indent = true ) {
+	$sku = $product->get_sku( 'edit' );
+
+	if ( $product->get_type() === 'variation' ) {
+		if ( $indent ) {
+			$name = str_repeat( '&nbsp;', 5 ) . wc_get_formatted_variation( $product, true, false, false );
+		} else {
+			$name = $product->get_name();
+		}
+		
+		if ( strlen( $sku ) > 0 ) {
+			$name = sprintf( '%s (%s)', $name, $sku );
+		}
+
+		$edit_id = $product->get_parent_id();
+	} else {
+		$name = $product->get_name();
+		if ( strlen( $sku ) > 0 ) {
+			$name = sprintf( '%s (%s)', $name, $sku );
+		}
+
+		$edit_id = $product->get_id();
+	}
+
+	return sprintf(
+		'<a href="%s" target="_blank">%s</a>',
+		esc_url( wss_product_url( $edit_id ) ),
+		esc_html( $name )
+	);
 }
 
 /**
@@ -607,10 +643,25 @@ function wss_transform_results( $entry, $site ) {
  * Options for status filter
  */
 function wss_status_filter_options() {
-	return [
+	$options = [
 		'all' => __( 'All products', 'woo-stock-sync' ),
 		'mismatch' => __( 'Stock mismatching', 'woo-stock-sync' ),
+		'present' => [
+			'label' => __( 'Present on site', 'woo-stock-sync' ),
+			'options' => [],
+		],
+		'not_present' => [
+			'label' => __( 'Not present on site', 'woo-stock-sync' ),
+			'options' => [],
+		],
 	];
+
+	foreach ( woo_stock_sync_sites() as $site ) {
+		$options['present']['options']['present_' . $site['key']] = sprintf( __( 'Present: %s', 'woo-stock-sync' ), $site['formatted_url'] );
+		$options['not_present']['options']['not_present_' . $site['key']] = sprintf( __( 'Not present: %s', 'woo-stock-sync' ), $site['formatted_url'] );
+	}
+
+	return $options;
 }
 
 /**

@@ -49,6 +49,61 @@
           </div>
         </div>
       </div>
+
+      <div id="wss-error-dialog" style="display:none;">
+        <p v-if="batchSize > 1">
+          <?php esc_html_e( 'The process was aborted by the server. Try to decrease batch size to process less products in one request.', 'woo-stock-sync' ); ?>
+        </p>
+
+        <p v-if="batchSize == 1">
+          <?php esc_html_e( 'The process was aborted by the server. Skip the product or retry.', 'woo-stock-sync' ); ?>
+        </p>
+
+        <p v-if="batchSize == 1 && skipProductTitle">
+          <?php esc_html_e( 'Skip product: ', 'woo-stock-sync' ); ?> {{ skipProductTitle }}
+        </p>
+
+        <p v-if="batchSize > 1">
+          <?php esc_html_e( 'Current batch size: {{ batchSize }}', 'woo-stock-sync' ); ?><br>
+          <?php esc_html_e( 'New batch size: {{ nextBatchSize }}', 'woo-stock-sync' ); ?>
+        </p>
+
+        <div class="wss-actions">
+          <p>
+            <button v-on:click.prevent="retryProcess" class="button button-primary"><?php _e( 'Retry', 'woo-stock-sync' ); ?></button>
+
+            <button v-if="batchSize == 1 && skipProductTitle" v-on:click.prevent="skipAndContinueProcess" class="button button-primary"><?php esc_html_e( 'Skip and continue', 'woo-stock-sync' ); ?></button>
+          </p>
+        </div>
+
+        <div class="wss-error-details">
+          <h3><?php esc_html_e( 'Error Details', 'woo-stock-sync' ); ?></h3>
+          <table class="wss-error-data-table">
+            <tr>
+              <th><?php esc_html_e( 'Error', 'woo-stock-sync' ); ?></th>
+              <td>{{ errorMsg }}</td>
+            </tr>
+            <tr>
+              <th><?php esc_html_e( 'Code', 'woo-stock-sync' ); ?></th>
+              <td>{{ errorCode }}</td>
+            </tr>
+            <tr>
+              <th><?php esc_html_e( 'Headers', 'woo-stock-sync' ); ?></th>
+              <td>
+                <div v-for="(header, headerCode) in errorHeaders">
+                  <span>{{ headerCode }}: {{ header }}</span>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <th><?php esc_html_e( 'Body', 'woo-stock-sync' ); ?></th>
+              <td>
+                <pre>{{ errorBody }}</pre>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -60,6 +115,15 @@ var app = new Vue( {
     status: 'pending',
     sites: <?php echo json_encode( array_values( woo_stock_sync_sites() ) ); ?>,
     totalRecords: 0, // Total number of products
+    batchSize: <?php echo intval( wss_get_batch_size( 'update' ) ); ?>,
+    nextBatchSize: <?php echo intval( wss_get_batch_size( 'update' ) ); ?>,
+    skipProductId: false,
+    skipProductTitle: false,
+    currentSiteIndex: false,
+    errorMsg: '',
+    errorCode: '',
+    errorBody: '',
+    errorHeaders: [],
   },
   methods: {
     /**
@@ -72,8 +136,87 @@ var app = new Vue( {
 
       Vue.set( this, 'status', 'process' );
       
-      this.processSite( 0, 1 );
+      this.processSite( 0 );
       this.runTimers();
+    },
+    /**
+     * Calculate next batch size
+     */
+    calculateNextBatchSize: function() {
+      if ( this.batchSize == 1 ) {
+        this.nextBatchSize = false;
+      }
+
+      var newBatchSize = Math.ceil(this.batchSize / 2);
+
+      if (newBatchSize == 2) {
+        newBatchSize = 1;
+      }
+
+      this.nextBatchSize = newBatchSize;
+    },
+    /**
+     * Reset error data
+     */
+    resetErrorData: function() {
+      this.errorMsg = '';
+      this.errorCode = '';
+      this.errorBody = '';
+      this.errorHeaders = '';
+    },
+    /**
+     * Display error dialog
+     */
+    displayErrorDialog: function() {
+      var dialog = jQuery('#wss-error-dialog' ).dialog({
+        width: "50%",
+        maxWidth: "800px",
+        dialogClass: 'wss-error-dialog-container',
+        title: 'Error',
+        closeOnEscape: true,
+        resizable: false,
+        draggable: false,
+        modal: true,
+        open: function(event, ui) { 
+          jQuery('.ui-widget-overlay').bind('click', function() { 
+            jQuery("#wss-error-dialog").dialog('close'); 
+          }); 
+        }
+      });
+    },
+    /**
+     * Retry process
+     */
+    retryProcess: function() {
+      Vue.set( this, 'status', 'process' );
+
+      this.sites[this.currentSiteIndex]['processStarted'] = new Date();
+
+      if ( this.batchSize == 1 ) {
+        this.processSite( this.currentSiteIndex );
+      } else {
+        Vue.set( this, 'batchSize', this.nextBatchSize );
+
+        this.processSite( this.currentSiteIndex );
+      }
+
+      this.runTimers();
+
+      jQuery( '#wss-error-dialog' ).dialog( 'close' );
+    },
+    /**
+     * Skip and continue process
+     */
+    skipAndContinueProcess: function() {
+      Vue.set( this, 'status', 'process' );
+
+      this.sites[this.currentSiteIndex]['processStarted'] = new Date();
+      this.sites[this.currentSiteIndex]['processedRecords'] += 1; // This will skip the product
+
+      this.processSite( this.currentSiteIndex );
+      this.runTimers();
+      
+      jQuery( '#wss-error-dialog' ).dialog( 'close' );
     },
     /**
      * Complete whole update
@@ -102,22 +245,25 @@ var app = new Vue( {
     /**
      * Process single site
      */
-    processSite: function( siteIndex, page ) {
+    processSite: function( siteIndex ) {
       var self = this;
 
       var site = this.sites[siteIndex];
       site.status = 'process';
       site.processEnded = false;
 
+      this.resetErrorData();
+
+      this.currentSiteIndex = siteIndex;
+
       if ( ! site.processStarted ) {
         site.processStarted = new Date();
       }
 
-      var limit = <?php echo wss_get_batch_size( 'update' ); ?>;
       var data = {
-        page: page,
+        offset: site.processedRecords,
         site_key: site.key,
-        limit: limit,
+        limit: this.batchSize,
         security: woo_stock_sync.nonces.update
       };
 
@@ -136,30 +282,49 @@ var app = new Vue( {
 
             site.processedRecords += response.count;
 
-            if ( response.last_page ) {
+            if ( response.total == 0 ) {
               site.status = 'completed';
               site.processEnded = new Date();
 
               if ( ( siteIndex + 1 ) < self.sites.length ) {
-                self.processSite( ( siteIndex + 1 ), 1 );
+                self.processSite( ( siteIndex + 1 ) );
               } else {
                 self.status = 'completed';
                 self.completeUpdate();
               }
             } else {
-              self.processSite( siteIndex, page + 1 );
+              self.processSite( siteIndex );
             }
           } else if ( response.status === 'error' ) {
-            alert( response.errors.join( "\n" ) + "\nAborting..." );
             self.status = 'pending';
             site.status = 'pending';
+
+            self.errorMsg = response.errors.join( "\n" );
+            self.errorCode = response.error_data.code;
+            self.errorHeaders = response.error_data.headers;
+            self.errorBody = response.error_data.body;
+
+            self.skipProductId = response.skip_product_id;
+            self.skipProductTitle = response.skip_product_title;
+
+            self.calculateNextBatchSize();
+            self.displayErrorDialog();
           } else {
             alert( 'Invalid response' );
           }
         },
         error: function( jqXHR, textStatus, errorThrown ) {
-          console.log( jqXHR, textStatus, errorThrown );
-          alert( jqXHR.status + " " + jqXHR.responseText + " " + textStatus + " " + errorThrown );
+          self.status = 'pending';
+          site.status = 'pending';
+
+          self.errorMsg = [textStatus, errorThrown].join(" ");
+          self.errorCode = jqXHR.status;
+          self.errorHeaders = [];
+          self.errorBody = jqXHR.responseText;
+          self.skipProductId = false;
+          self.skipProductTitle = false;
+
+          self.displayErrorDialog();
         },
         complete: function() {
         }
@@ -188,9 +353,10 @@ var app = new Vue( {
     // Initialize values
     _.each( this.sites, function( site ) {
       Vue.set( site, 'status', 'pending' );
+      Vue.set( site, 'processStarted', false );
       Vue.set( site, 'processEnded', false );
-      Vue.set( site, 'processedRecords', 0 );
       Vue.set( site, 'timeElapsed', '00:00:00' );
+      Vue.set( site, 'processedRecords', 0 );
     } );
   },
   mounted: function() {

@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Woo_Stock_Sync_Api_Request {
 	public $errors = [];
-	public $response = false;
+	public $response;
 
 	/**
 	 * Constructor
@@ -139,7 +139,7 @@ class Woo_Stock_Sync_Api_Request {
 
 					$level = 'ok';
 				} else if ( isset( $ext_product->error, $ext_product->error->code, $skus[$ext_product->sku] ) && $ext_product->error->code === 'woocommerce_rest_product_invalid_sku' ) {
-					wss_reset_sync_status( $skus[$ext_product->sku], $site['key'], true );
+					wss_reset_sync_status( $skus[$ext_product->sku], $site['key'] );
 
 					$product_errors['not_found'] = __( "Product not found by SKU", 'woo-stock-sync' );
 					$level = 'warning';
@@ -208,13 +208,17 @@ class Woo_Stock_Sync_Api_Request {
 
 		// Fetch external products by SKU
 		try {
-			$client->get( 'products', array(
+			$client->get( 'products', [
 				'sku' => implode( ',', $skus ),
 				'per_page' => 100,
 				'context' => 'edit',
-			) );
+			] );
 		} catch ( \Exception $e ) {
 			$this->errors['exception_update'] = sprintf( __( "Exception while trying to update sync status. Message: %s", 'woo-stock-sync' ), $e->getMessage() );
+
+			if ( is_a( $e, 'Automattic\WooCommerce\HttpClient\HttpClientException' ) ) {
+				$this->response = $e->getResponse();
+			}
 
 			return false;
 		}

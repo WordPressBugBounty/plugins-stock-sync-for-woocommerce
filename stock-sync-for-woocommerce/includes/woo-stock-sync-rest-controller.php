@@ -308,26 +308,14 @@ class WC_REST_Stock_Sync_Controller extends WC_REST_Products_V2_Controller {
 	protected function prepare_object_for_database( $request, $creating = false ) {
 		$product = $this->get_object( $this->get_request_sku( $request ) );
 
-		// Stock status.
-		if ( isset( $request['in_stock'] ) ) {
-			$stock_status = true === $request['in_stock'] ? 'instock' : 'outofstock';
-		} else {
-			$stock_status = $product->get_stock_status();
-		}
-
-		// Stock data.
 		if ( 'yes' === get_option( 'woocommerce_manage_stock' ) ) {
-			if ( $product->is_type( 'grouped' ) ) {
-				// Do nothing
-			} elseif ( $product->is_type( 'external' ) ) {
-				// Do nothing
-			} elseif ( $product->get_manage_stock() ) {
-				// Stock status is always determined by children so sync later.
-				if ( ! $product->is_type( 'variable' ) ) {
-					$product->set_stock_status( $stock_status );
+			if ( ! in_array( $product->get_type(), [ 'grouped', 'external' ], true ) ) {
+				// Enable stock management if it's disabled
+				if ( ! $product->get_manage_stock() ) {
+					$product->set_manage_stock( true );
 				}
 
-				// Stock quantity.
+				// Set stock quantity
 				if ( isset( $request['stock_quantity'] ) ) {
 					$product->set_stock_quantity( wc_stock_amount( $request['stock_quantity'] ) );
 				} elseif ( isset( $request['inventory_delta'] ) ) {
@@ -335,11 +323,7 @@ class WC_REST_Stock_Sync_Controller extends WC_REST_Products_V2_Controller {
 					$stock_quantity += wc_stock_amount( $request['inventory_delta'] );
 					$product->set_stock_quantity( wc_stock_amount( $stock_quantity ) );
 				}
-			} else {
-				// Do nothing
 			}
-		} elseif ( ! $product->is_type( 'variable' ) ) {
-			$product->set_stock_status( $stock_status );
 		}
 
 		/**

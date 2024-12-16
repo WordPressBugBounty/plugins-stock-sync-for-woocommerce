@@ -26,8 +26,20 @@
 
           <div class="wss-filters">
             <select name="wss_status">
-              <?php foreach ( wss_status_filter_options() as $key => $label ) { ?>
-                <option value="<?php echo esc_attr( $key ); ?>" <?php selected( $status_filter, $key ); ?>><?php echo esc_html( $label ); ?></option>
+              <?php foreach ( wss_status_filter_options() as $key => $options_or_label ) { ?>
+                <?php if ( is_array( $options_or_label ) ) { ?>
+                  <optgroup label="<?php echo esc_attr( $options_or_label['label'] ); ?>">
+
+                  <?php foreach ( $options_or_label['options'] as $key2 => $label ) { ?>
+                    <option value="<?php echo esc_attr( $key2 ); ?>" <?php selected( $status_filter, $key2 ); ?>><?php echo esc_html( $label ); ?></option>
+                  <?php } ?>
+                <?php } else { ?>
+                  <option value="<?php echo esc_attr( $key ); ?>" <?php selected( $status_filter, $key ); ?>><?php echo esc_html( $options_or_label ); ?></option>
+                <?php } ?>
+
+                <?php if ( is_array( $options_or_label ) ) { ?>
+                  </optgroup>
+                <?php } ?>
               <?php } ?>
             </select>
 
@@ -77,6 +89,38 @@
           <a href="<?php echo esc_attr( $urls['update'] ); ?>"><?php esc_html_e( 'Update now', 'woo-stock-sync' ); ?> &raquo;</a>
         </div>
       </form>
+
+      <div id="wss-error-dialog" style="display:none;">
+        <?php esc_html_e( 'The process was aborted by the server.', 'woo-stock-sync' ); ?>
+
+        <div class="wss-error-details">
+          <h3><?php esc_html_e( 'Error Details', 'woo-stock-sync' ); ?></h3>
+          <table class="wss-error-data-table">
+            <tr>
+              <th><?php esc_html_e( 'Error', 'woo-stock-sync' ); ?></th>
+              <td>{{ errorMsg }}</td>
+            </tr>
+            <tr>
+              <th><?php esc_html_e( 'Code', 'woo-stock-sync' ); ?></th>
+              <td>{{ errorCode }}</td>
+            </tr>
+            <tr>
+              <th><?php esc_html_e( 'Headers', 'woo-stock-sync' ); ?></th>
+              <td>
+                <div v-for="(header, headerCode) in errorHeaders">
+                  <span>{{ headerCode }}: {{ header }}</span>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <th><?php esc_html_e( 'Body', 'woo-stock-sync' ); ?></th>
+              <td>
+                <pre>{{ errorBody }}</pre>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
     </div>
   <?php } else { ?>
     <p><?php printf( __( 'Please view report in <a href="%s" target="_blank">the Primary Inventory site.</a>', 'woo-stock-sync' ), wss_primary_report_url() ); ?></p>
@@ -91,6 +135,10 @@
         status: 'pending',
         sites: <?php echo json_encode( array_values( $sites ) ); ?>,
         products: <?php echo json_encode( $products_json ); ?>,
+        errorMsg: '',
+        errorCode: '',
+        errorBody: '',
+        errorHeaders: [],
       },
       methods: {
         /**
@@ -114,6 +162,8 @@
           var site = this.sites[siteIndex];
           var siteKey = site['key'];
 
+          this.resetErrorData();
+
           jQuery.ajax( {
             type: 'post',
             url: woo_stock_sync.ajax_urls.push,
@@ -132,14 +182,18 @@
 
               if ( response.status ) {
                 product.site_qtys = response.site_qtys;
-              } else {
-                alert( response.errors.join( "\n" ) );
-              }
 
-              if ( ( siteIndex + 1 ) < self.sites.length ) {
-                self.pushQty( product, ( siteIndex + 1 ) );
+                if ( ( siteIndex + 1 ) < self.sites.length ) {
+                  self.pushQty( product, ( siteIndex + 1 ) );
+                } else {
+                  product.status = 'completed';
+                }
               } else {
-                product.status = 'completed';
+                self.errorMsg = response.errors.join("\n");
+                self.errorCode = response.error_data.code;
+                self.errorHeaders = response.error_data.headers;
+                self.errorBody = response.error_data.body;
+                self.displayErrorDialog();
               }
             },
             error: function( jqXHR, textStatus, errorThrown ) {
@@ -149,6 +203,35 @@
             complete: function() {
             }
           } );
+        },
+        /**
+         * Display error dialog
+         */
+        displayErrorDialog: function() {
+          var dialog = jQuery('#wss-error-dialog' ).dialog({
+            width: "50%",
+            maxWidth: "800px",
+            dialogClass: 'wss-error-dialog-container',
+            title: 'Error',
+            closeOnEscape: true,
+            resizable: false,
+            draggable: false,
+            modal: true,
+            open: function(event, ui) { 
+              jQuery('.ui-widget-overlay').bind('click', function() { 
+                jQuery("#wss-error-dialog").dialog('close'); 
+              }); 
+            }
+          });
+        },
+        /**
+         * Reset error data
+         */
+        resetErrorData: function() {
+          this.errorMsg = '';
+          this.errorCode = '';
+          this.errorBody = '';
+          this.errorHeaders = '';
         },
         /**
          * Edit stock quantity
@@ -161,6 +244,8 @@
          */
         updateQty: function( product ) {
           var self = this;
+
+          this.resetErrorData();
 
           jQuery.ajax( {
             type: 'post',
