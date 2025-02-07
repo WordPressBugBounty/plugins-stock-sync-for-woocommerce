@@ -322,6 +322,10 @@ class Woo_Stock_Sync_Admin {
 				continue;
 			}
 
+			if ( ! $product->managing_stock() ) {
+				continue;
+			}
+
 			$data[] = [
 				'product' => $product,
 				'operation' => 'set',

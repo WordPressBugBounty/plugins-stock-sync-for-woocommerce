@@ -311,7 +311,7 @@ class WC_REST_Stock_Sync_Controller extends WC_REST_Products_V2_Controller {
 		if ( 'yes' === get_option( 'woocommerce_manage_stock' ) ) {
 			if ( ! in_array( $product->get_type(), [ 'grouped', 'external' ], true ) ) {
 				// Enable stock management if it's disabled
-				if ( ! $product->get_manage_stock() ) {
+				if ( ! $product->get_manage_stock() && apply_filters( 'wss_enable_stock_management', true ) ) {
 					$product->set_manage_stock( true );
 				}
 

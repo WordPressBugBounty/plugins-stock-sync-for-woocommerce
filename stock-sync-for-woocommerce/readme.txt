@@ -4,7 +4,7 @@ Tags: woocommerce, stock synchronization, shared stock
 Requires at least: 4.5
 Tested up to: 6.7
 Requires PHP: 7.0
-Stable tag: 2.8.0
+Stable tag: 2.8.1
 License: GPLv2
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -63,6 +63,11 @@ Stock Sync is installed just like any other WordPress plugin.
 Once the plugin is activated, you need to set up API credentials and import stock quantities from one store to the other. Please see [the documentation](https://wptrio.com/guide/getting-started-with-woocommerce-stock-sync-pro/).
 
 == Changelog ==
+
+= 2.8.1 =
+
+* Fixed a bug where the **Push All** tool enabled stock management for variable parent products, even when it was turned off. The bug applied to parent products that had matching SKU with the other site
+* Added **wss_enable_stock_management** filter to determine whether stock management should be turned on automatically if it's turned off on the other site (default: true)
 
 = 2.8.0 =
 
