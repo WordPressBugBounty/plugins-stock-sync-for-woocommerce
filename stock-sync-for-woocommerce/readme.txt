@@ -2,9 +2,9 @@
 Contributors: wooelements
 Tags: woocommerce, stock synchronization, shared stock
 Requires at least: 4.5
-Tested up to: 6.7
+Tested up to: 6.8
 Requires PHP: 7.0
-Stable tag: 2.8.1
+Stable tag: 2.9.0
 License: GPLv2
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -63,6 +63,11 @@ Stock Sync is installed just like any other WordPress plugin.
 Once the plugin is activated, you need to set up API credentials and import stock quantities from one store to the other. Please see [the documentation](https://wptrio.com/guide/getting-started-with-woocommerce-stock-sync-pro/).
 
 == Changelog ==
+
+= 2.9.0 =
+
+* Log entries now include additional details such as the user, IP address, context, and other data related to what triggered the stock change. These details can be viewed by clicking the link under the **Source** column in **WooCommerce > Stock Sync > Log**
+* Added **Clear logs** function to delete all entries from the log table (**WooCommerce > Stock Sync > Log > Clear logs**)
 
 = 2.8.1 =
 

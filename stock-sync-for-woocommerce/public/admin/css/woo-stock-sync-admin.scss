@@ -288,6 +288,17 @@ $border-color: #dee2e6;
     }
   }
 
+  .actions {
+    margin-bottom: 10px;
+  }
+
+  a.wss-clear-logs {
+    text-decoration: none;
+    line-height: 14px;
+    padding: 8px 0;
+    display: inline-block;
+    vertical-align: top;
+  }
 
   table {
     background: #ffffff;
@@ -346,6 +357,54 @@ $border-color: #dee2e6;
   &.sync-result-error {background: #e03131;}
   &.sync-result-na {background: #ced4da;}
 }
+
+/**
+ * Log entry modal
+ */
+.wss-log-modal {
+  .wc-backbone-modal-main {
+    padding-bottom: 0;
+  }
+
+  table.wss-log-entry-table {
+    width: 100%;
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+    table-layout: fixed;
+  
+    tr {
+      th, td {
+        color: #50575e;
+        text-align: left;
+        font-size: 14px;
+        line-height: 1.3em;
+        vertical-align: top;
+      }
+    
+      th {
+        font-weight: bold;
+        padding: 0.5em 1em 0.5em 0;
+        width: 30%;
+      }
+    
+      td {
+        padding: 0.5em 0 0.5em 0;
+        width: 70%;
+        word-break: break-word;
+        overflow-wrap: break-word;
+      }
+    }
+  }
+
+  .wss-spinner {
+    height: 16px;
+    width: 16px;
+    margin: 20px auto;
+    background: url("../img/wpspin_light.gif") no-repeat top left;
+  }
+}
+
 
 /**
  * Tools page

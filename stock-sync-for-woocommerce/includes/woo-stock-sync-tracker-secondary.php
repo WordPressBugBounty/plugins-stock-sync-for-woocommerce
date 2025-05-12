@@ -60,14 +60,14 @@ class Woo_Stock_Sync_Tracker_Secondary {
 			$source_desc = sprintf( __( 'Order #%s', 'woo-stock-sync' ), $GLOBALS['wcs_source_order_id'] );
 		}
 
-		$this->delta_job = [
+		$this->delta_job = wss_augment_log_data( [
 			'product_id' => $product->get_id(),
 			'operation' => $operation,
 			'value' => $change,
 			'source_desc' => isset( $source_desc ) ? $source_desc : null,
 			'source_url' => isset( $source_url ) ? $source_url : null,
 			'new_stock' => $new_stock,
-		];
+		] );
 
 		return true;
 	}
@@ -119,12 +119,12 @@ class Woo_Stock_Sync_Tracker_Secondary {
 		], admin_url( 'post.php' ) );
 
 		// Run syncing
-		wss_dispatch_sync( [
+		wss_dispatch_sync( wss_augment_log_data( [
 			'product_id' => $product->get_id(),
 			'operation' => 'set',
 			'value' => $product->get_stock_quantity( 'edit' ),
 			'source_desc' => __( 'via admin', 'woo-stock-sync' ),
 			'source_url' => $source_url,
-		] );
+		] ) );
 	}
 }

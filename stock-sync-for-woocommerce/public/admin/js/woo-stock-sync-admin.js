@@ -221,6 +221,64 @@ jQuery(document).ready(function($){
       return;
     },
   };
-
   wooStockSyncSettings.init();
+
+  /**
+   * Log page functionality
+   */
+  var wooStockSyncLog = {
+    init: function() {
+      if ( $( 'table.wss-log-table' ).length > 0 ) {
+        this.openModal();
+        this.clearLogsConfirm();
+      }
+    },
+
+    /**
+     * Confirm log clearing
+     */
+    clearLogsConfirm: function() {
+      $( document ).on( 'click', 'a.wss-clear-logs', function( e ) {
+        return confirm( 'Are you sure you want to clear the logs? This action cannot be undone.' );
+      } );
+    },
+
+    /**
+     * Open modal
+     */
+    openModal: function() {
+      var self = this;
+
+      $( 'a.wss-view-log' ).click( function( e ) {
+        e.preventDefault();
+
+        $( this ).WCBackboneModal( {
+          template: 'wss-log-modal',
+        } );
+
+        self.getLogChanges( $( this ).data( 'log-id' ) );
+      } );
+    },
+
+    /**
+     * Fetch log changes content
+     */
+    getLogChanges: function( logId ) {
+      var data = {
+        'action': 'wss_log_entry',
+        'log_id': logId,
+      };
+
+      jQuery.get(ajaxurl, data)
+      .done(function(response) {
+        $( '.wss-log-modal article' ).html( response );
+      })
+      .fail(function(response) {
+        alert( 'Error fetching log data' );
+      })
+      .always(function(response) {
+      });
+    }
+  };
+  wooStockSyncLog.init();
 });

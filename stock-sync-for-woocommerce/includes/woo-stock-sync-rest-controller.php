@@ -287,6 +287,12 @@ class WC_REST_Stock_Sync_Controller extends WC_REST_Products_V2_Controller {
 				'source' => $request['woo_stock_sync_source'],
 				'source_url' => isset( $request['source_url'] ) ? $request['source_url'] : null,
 				'source_desc' => isset( $request['source_desc'] ) ? $request['source_desc'] : null,
+				'remote_addr' => isset( $request['remote_addr'] ) ? $request['remote_addr'] : null,
+				'request_uri' => isset( $request['request_uri'] ) ? $request['request_uri'] : null,
+				'referer' => isset( $request['referer'] ) ? $request['referer'] : null,
+				'is_cli' => isset( $request['is_cli'] ) ? $request['is_cli'] : null,
+				'user_id' => isset( $request['user_id'] ) ? $request['user_id'] : null,
+				'username' => isset( $request['username'] ) ? $request['username'] : null,
 			], 'queued' );
 
 			$GLOBALS['wss_logged_changes'][] = [

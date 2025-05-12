@@ -264,6 +264,18 @@ td.forminp-wss_credentials_table > table .pro-sites {
   margin-bottom: 10px;
 }
 
+#woo-stock-sync-report .actions {
+  margin-bottom: 10px;
+}
+
+#woo-stock-sync-report a.wss-clear-logs {
+  text-decoration: none;
+  line-height: 14px;
+  padding: 8px 0;
+  display: inline-block;
+  vertical-align: top;
+}
+
 #woo-stock-sync-report table {
   background: #ffffff;
 }
@@ -333,6 +345,49 @@ td.forminp-wss_credentials_table > table .pro-sites {
 
 .wss-sync-result.sync-result-na {
   background: #ced4da;
+}
+
+/**
+ * Log entry modal
+ */
+.wss-log-modal .wc-backbone-modal-main {
+  padding-bottom: 0;
+}
+
+.wss-log-modal table.wss-log-entry-table {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+  table-layout: fixed;
+}
+
+.wss-log-modal table.wss-log-entry-table tr th, .wss-log-modal table.wss-log-entry-table tr td {
+  color: #50575e;
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.3em;
+  vertical-align: top;
+}
+
+.wss-log-modal table.wss-log-entry-table tr th {
+  font-weight: bold;
+  padding: 0.5em 1em 0.5em 0;
+  width: 30%;
+}
+
+.wss-log-modal table.wss-log-entry-table tr td {
+  padding: 0.5em 0 0.5em 0;
+  width: 70%;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.wss-log-modal .wss-spinner {
+  height: 16px;
+  width: 16px;
+  margin: 20px auto;
+  background: url("../img/wpspin_light.gif") no-repeat top left;
 }
 
 /**

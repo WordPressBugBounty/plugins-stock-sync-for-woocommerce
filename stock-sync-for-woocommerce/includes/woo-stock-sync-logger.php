@@ -305,4 +305,84 @@ class Woo_Stock_Sync_Logger {
 
 		return $record;
 	}
+
+	/**
+	 * Rows for the log entry table
+	 */
+	public static function entry_rows( $log ) {
+		$rows = [];
+
+		$rows[] = [
+			'label' => __( 'Date', 'woo-stock-sync' ),
+			'value' => esc_html( wss_format_datetime( strtotime( $log->created_at ) ) ),
+		];
+
+		$rows['msg'] = [
+			'label' => __( 'Message', 'woo-stock-sync' ),
+			'value' => wp_kses_post( $log->message ),
+		];
+
+		if ( isset( $log->data->source_desc ) ) {
+			$rows[] = [
+				'label' => __( 'Description', 'woo-stock-sync' ),
+				'value' => esc_html( $log->data->source_desc ),
+				'url' => isset( $log->data->source_url ) ? $log->data->source_url : false
+			];
+		}
+
+		if ( isset( $log->data->source ) ) {
+			$rows[] = [
+				'label' => __( 'Site', 'woo-stock-sync' ),
+				'value' => esc_html( wss_format_site_url( $log->data->source ) ),
+			];
+		}
+
+		if ( isset( $log->data->username ) ) {
+			$rows[] = [
+				'label' => __( 'User', 'woo-stock-sync' ),
+				'value' => ! empty( $log->data->username ) ? esc_html( sprintf( '%s (%s)', $log->data->username, $log->data->user_id ) ) : __( 'Anonymous', 'woo-stock-sync' ),
+			];
+		}
+
+		if ( isset( $log->data->request_uri ) ) {
+			$rows[] = [
+				'label' => __( 'URL', 'woo-stock-sync' ),
+				'value' => esc_html( $log->data->request_uri ),
+			];
+		}
+
+		if ( isset( $log->data->referer ) ) {
+			$rows[] = [
+				'label' => __( 'Referer URL', 'woo-stock-sync' ),
+				'value' => esc_html( $log->data->referer ),
+			];
+		}
+
+		if ( isset( $log->data->remote_addr ) ) {
+			$rows[] = [
+				'label' => __( 'IP address', 'woo-stock-sync' ),
+				'value' => esc_html( $log->data->remote_addr ),
+			];
+		}
+
+		if ( isset( $log->data->is_cli ) ) {
+			$rows[] = [
+				'label' => __( 'CLI', 'woo-stock-sync' ),
+				'value' => $log->data->is_cli ? __( 'Yes', 'woo-stock-sync' ) : __( 'No', 'woo-stock-sync' ),
+			];
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Clear logs
+	 */
+	public static function clear_logs() {
+		global $wpdb;
+
+		$table = self::table();
+
+		$wpdb->query( "TRUNCATE TABLE {$table}" );
+	}
 }

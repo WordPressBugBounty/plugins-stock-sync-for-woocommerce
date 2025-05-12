@@ -70,11 +70,11 @@ class Woo_Stock_Sync_Tracker_Primary {
 			$source_desc = sprintf( __( 'Order #%s', 'woo-stock-sync' ), $GLOBALS['wcs_source_order_id'] );
 		}
 
-		$log_id = Woo_Stock_Sync_Logger::log( $msg, 'stock_change', $product->get_id(), [
+		$log_id = Woo_Stock_Sync_Logger::log( $msg, 'stock_change', $product->get_id(), wss_augment_log_data( [
 			'source' => get_site_url(),
 			'source_desc' => isset( $source_desc ) ? $source_desc : null,
 			'source_url' => isset( $source_url ) ? $source_url : null,
-		], 'queued' );
+		] ), 'queued' );
 
 		$GLOBALS['wss_logged_changes'][] = [
 			'product_id' => $product_id_with_stock,
@@ -113,11 +113,11 @@ class Woo_Stock_Sync_Tracker_Primary {
 			], admin_url( 'post.php' ) );
 		}
 
-		$log_id = Woo_Stock_Sync_Logger::log( $msg, 'stock_change', $product->get_id(), [
+		$log_id = Woo_Stock_Sync_Logger::log( $msg, 'stock_change', $product->get_id(), wss_augment_log_data( [
 			'source' => get_site_url(),
 			'source_desc' => isset( $source_desc ) ? $source_desc : null,
 			'source_url' => isset( $source_url ) ? $source_url : null,
-		], 'queued' );
+		] ), 'queued' );
 
 		$GLOBALS['wss_logged_changes'][] = [
 			'product_id' => $product->get_id(),

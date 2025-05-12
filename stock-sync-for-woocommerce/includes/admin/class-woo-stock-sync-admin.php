@@ -38,6 +38,12 @@ class Woo_Stock_Sync_Admin {
 		// Push stock quantity to external sites
 		add_action( 'wp_ajax_woo_stock_sync_push', array( $this, 'push' ) );
 		
+		// View log entry
+		add_action( 'wp_ajax_wss_log_entry', [ $this, 'view_log_entry' ] );
+		
+		// Clear logs
+		add_action( 'wp_ajax_wss_clear_logs', [ $this, 'clear_logs' ] );
+
 		// View last response from credentials check
 		add_action( 'wp_ajax_wss_view_last_response', [ $this, 'view_last_response' ] );
   }
@@ -357,6 +363,48 @@ class Woo_Stock_Sync_Admin {
 			'skip_product_id' => $skip_product_id,
 			'skip_product_title' => $skip_product_title,
 		], 200 );
+	}
+
+	/**
+	 * View log entry
+	 */
+	public function view_log_entry() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			die( 'Access denied' );
+		}
+
+		$log_id = $_GET['log_id'];
+		$log = false;
+		$rows = [];
+		if ( $log_id ) {
+			$log = Woo_Stock_Sync_Logger::get( $log_id );
+
+			if ( $log ) {
+				$rows = Woo_Stock_Sync_Logger::entry_rows( $log );
+			}
+		}
+
+		include 'views/log-entry.html.php';
+
+		die;
+	}
+
+	/**
+	 * Clear logs
+	 */
+	public function clear_logs() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			die( 'Access denied' );
+		}
+
+		if ( ! isset( $_REQUEST['_wpnonce'] ) || ! wp_verify_nonce( $_REQUEST['_wpnonce'], 'wss-clear-logs' ) ) {
+			die( 'Access denied' );
+		}
+
+		Woo_Stock_Sync_Logger::clear_logs();
+
+		wp_safe_redirect( admin_url( 'admin.php?page=woo-stock-sync-report&action=log' ) );
+		die;
 	}
 
 	/**

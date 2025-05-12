@@ -670,3 +670,35 @@ function wss_status_filter_options() {
 function wss_get_pro_url() {
 	return 'https://wptrio.com/products/stock-sync-pro/';
 }
+
+/**
+ * Augment log data with user ID, IP address etc.
+ */
+function wss_augment_log_data( $data ) {
+	$host = ( empty( $_SERVER['HTTPS'] ) ? 'http' : 'https' ) . "://{$_SERVER['HTTP_HOST']}";
+
+	$augment = [
+		'remote_addr' => isset( $_SERVER['REMOTE_ADDR'] ) ? $_SERVER['REMOTE_ADDR'] : '',
+		'request_uri' => '',
+		'referer' => sprintf( '%s%s', $host, wp_get_raw_referer() ),
+		'is_cli' => defined( 'WP_CLI' ) && WP_CLI,
+		'user_id' => 0,
+		'username' => __( 'Anonymous', 'woo-stock-sync' ),
+	];
+
+	if ( isset( $_SERVER['REQUEST_URI'] ) ) {
+		$augment['request_uri'] = sprintf( '%s%s', $host, $_SERVER['REQUEST_URI'] );
+	}
+
+	if ( ( $user = wp_get_current_user() ) ) {
+		$augment['user_id'] = $user->ID;
+		$augment['username'] = $user->user_login;
+	}
+
+	// Clip all data to 250 characters
+	foreach ( $augment as $key => $value ) {
+		$augment[$key] = substr( $value, 0, 250 );
+	}
+
+	return array_merge( $data, $augment );
+}

@@ -21,7 +21,7 @@ class Woo_Stock_Sync_Process extends WP_Async_Request {
 
 		$salt = uniqid();
 		$args['body']['salt'] = $salt;
-		$args['body']['mac'] = md5( implode( '|', [ $salt, NONCE_SALT ] ) );
+		$args['body']['mac'] = md5( implode( '|', [ $salt, AUTH_KEY ] ) );
 
 		unset( $args['cookies'] );
 
@@ -67,6 +67,12 @@ class Woo_Stock_Sync_Process extends WP_Async_Request {
 				'source_desc' => isset( $row['source_desc'] ) ? $row['source_desc'] : null,
 				'source_url' => isset( $row['source_url'] ) ? $row['source_url'] : null,
 				'log_id' => isset( $row['log_id'] ) ? $row['log_id'] : null,
+				'remote_addr' => isset( $row['remote_addr'] ) ? $row['remote_addr'] : null,
+				'request_uri' => isset( $row['request_uri'] ) ? $row['request_uri'] : null,
+				'referer' => isset( $row['referer'] ) ? $row['referer'] : null,
+				'is_cli' => isset( $row['is_cli'] ) ? $row['is_cli'] : null,
+				'user_id' => isset( $row['user_id'] ) ? $row['user_id'] : null,
+				'username' => isset( $row['username'] ) ? $row['username'] : null,
 			];
 		}
 
@@ -106,7 +112,7 @@ class Woo_Stock_Sync_Process extends WP_Async_Request {
 	 */
 	private function verify() {
 		$salt = isset( $_POST['salt'] ) ? $_POST['salt'] : '';
-		$mac = md5( implode( '|', [ $salt, NONCE_SALT ] ) );
+		$mac = md5( implode( '|', [ $salt, AUTH_KEY ] ) );
 
 		if ( $mac !== $_POST['mac'] ) {
 			wp_die( -1, 403 );

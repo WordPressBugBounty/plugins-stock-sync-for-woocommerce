@@ -31,6 +31,8 @@
         </select>
 
         <input type="submit" name="filter_action" id="post-query-submit" class="button" value="<?php esc_attr_e( 'Filter', 'woo-stock-sync' ); ?>">
+
+        <a href="<?php echo wp_nonce_url( admin_url( 'admin-ajax.php?action=wss_clear_logs' ), 'wss-clear-logs' ); ?>" class="wss-clear-logs"><?php esc_html_e( 'Clear logs &raquo;', 'woo-stock-sync' ); ?></a>
       </div>
     
       <?php echo $pagination; ?>
@@ -56,18 +58,13 @@
             </td>
             <td>
               <?php if ( isset( $log->data->source ) ) { ?>
-                <?php if ( isset( $log->data->source_url ) ) { ?>
-                  <a href="<?php echo esc_attr( $log->data->source_url ); ?>" target="_blank">
-                <?php } ?>
+                <a href="#" class="wss-view-log" data-log-id="<?php echo $log->id; ?>">
                   <?php echo esc_html( wss_format_site_url( $log->data->source ) ); ?>
 
                   <?php if ( isset( $log->data->source_desc ) ) { ?>
                     <?php echo esc_html( $log->data->source_desc ); ?>
                   <?php } ?>
-
-                <?php if ( isset( $log->data->source_url ) ) { ?>
-                  </a>
-                <?php } ?>
+                </a>
               <?php } ?>
             </td>
             <td>
@@ -109,3 +106,5 @@
     </div>
   </form>
 </div>
+
+<?php include 'log-entry-modal.html.php'; ?>
