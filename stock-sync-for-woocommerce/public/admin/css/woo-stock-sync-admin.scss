@@ -1,26 +1,6 @@
 /* compile */
 
 /**
- * Check credentials in the settings page
- */
-
-.woo-stock-sync-check-credentials-indicator {
-	display: inline-block;
-	width: auto;
-	height: 30px;
-  line-height: 30px;
-	background-repeat: no-repeat;
-	background-position: left center;
-	margin-left: 10px;
-	padding-left: 21px;
-  vertical-align: top;
-}
-
-.woo-stock-sync-check-credentials-processing { background-image: url("../img/wpspin_light.gif"); }
-.woo-stock-sync-check-credentials-success { background-image: url("../img/yes.png"); }
-.woo-stock-sync-check-credentials-fail { background-image: url("../img/no.png"); }
-
-/**
  * API credentials table
  */
 td.forminp-wss_credentials_table  {
@@ -122,6 +102,10 @@ td.forminp-wss_credentials_table  {
   
         &.ok {
           background-image: url("../img/yes.png");
+        }
+
+        &.warning {
+          background-image: url("../img/warning.png");
         }
       }
     }
@@ -292,12 +276,29 @@ $border-color: #dee2e6;
     margin-bottom: 10px;
   }
 
-  a.wss-clear-logs {
-    text-decoration: none;
-    line-height: 14px;
-    padding: 8px 0;
-    display: inline-block;
-    vertical-align: top;
+  #wss-report-footer {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+
+    .wss-desc-container {
+      width: 50%;
+      flex: auto;
+    }
+
+    .wss-clear-log {
+      text-align: right;
+      flex: auto;
+      width: 50%;
+
+      a.wss-clear-logs {
+        text-decoration: none;
+        line-height: 14px;
+        padding: 8px 0;
+        display: inline-block;
+        vertical-align: top;
+      }
+    }
   }
 
   table {
@@ -350,6 +351,11 @@ $border-color: #dee2e6;
   line-height: 16px;
   font-size: 12px;
   vertical-align: text-top;
+
+  &:hover {
+    text-decoration: none;
+    color: #fff;
+  }
 
   &.sync-result-info {background: #1971c2;}
   &.sync-result-success {background: #2f9e44;}
@@ -480,6 +486,36 @@ $border-color: #dee2e6;
   border: 1px solid #ffe066;
   padding: 10px 20px;
   margin: 20px 0;
+}
+
+/**
+ * Labels
+ */
+.wss-label {
+  &.wss-label-ok {
+    color: #2b8a3e;
+  }
+
+  &.wss-label-error {
+    color: #c92a2a;
+  }
+
+  &.wss-label-warning {
+    color: #e67700;
+  }
+
+  &.wss-label-info {
+    color: #1864ab;
+  }
+
+  &.wss-label-na {
+    color: #495057;
+  }
+}
+
+.wss-help {
+  color: #495057;
+  font-size: 0.9em;
 }
 
 /**

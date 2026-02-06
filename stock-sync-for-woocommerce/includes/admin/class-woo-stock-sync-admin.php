@@ -45,7 +45,10 @@ class Woo_Stock_Sync_Admin {
 		add_action( 'wp_ajax_wss_clear_logs', [ $this, 'clear_logs' ] );
 
 		// View last response from credentials check
-		add_action( 'wp_ajax_wss_view_last_response', [ $this, 'view_last_response' ] );
+		add_action( 'wp_ajax_wss_view_response', [ $this, 'view_response' ] );
+
+		// Add IP address to the status report
+		add_filter( 'woocommerce_system_status_environment_rows', [ $this, 'add_ip_to_status_report' ], 10, 1 );
   }
 
 	/**
@@ -55,6 +58,67 @@ class Woo_Stock_Sync_Admin {
 		if ( ! woo_stock_sync_version_check() ) {
 			queue_flash_message( __( 'Stock Sync for WooCommerce requires WooCommerce 4.0 or higher. Please update WooCommerce.', 'woo-stock-sync' ), 'error' );
 		}
+	}
+
+	/**
+	 * Add IP address to the status report
+	 */
+	public function add_ip_to_status_report( $rows ) {
+		$ip = $note = $this->get_ip();
+		if ( ! $ip ) {
+			$note = __( 'N/A', 'woo-stock-sync' );
+		}
+
+		$rows[] = [
+			'success' => ! empty( $ip ),
+			'help' => false,
+			'note' => $note,
+			'name' => __( 'IP Address', 'woo-stock-sync' ),
+		];
+
+		return $rows;
+	}
+
+	/**
+	 * Get IP address for the status report
+	 * 
+	 * This will ping WPTrio.com endpoint which simply returns
+	 * the connecting IP address
+	 * 
+	 * We will need IP address for Cloudflare / WAF whitelisting
+	 * and will show it in the status report for convenience
+	 */
+	public function get_ip() {
+		$transient_key = 'wss_ip_address';
+
+		$ip = get_transient( $transient_key );
+		if ( $ip !== false ) {
+			return $ip;
+		}
+
+		// Fetch remote IP
+		$response = wp_remote_get( 'https://wptrio.com/ip.php', [
+			'timeout' => 3,
+			'sslverify' => false,
+		] );
+
+		if ( ! is_wp_error( $response ) ) {
+			if ( wp_remote_retrieve_response_code( $response ) === 200 ) {
+				$body = wp_remote_retrieve_body( $response );
+
+				$body = trim( $body );
+
+				if ( ! empty( $body ) ) {
+					set_transient( $transient_key, $body, HOUR_IN_SECONDS );
+
+					return $body;
+				}
+			}
+		}
+
+		set_transient( $transient_key, 0, HOUR_IN_SECONDS );
+
+		return false;
 	}
 
 	/**
@@ -109,7 +173,7 @@ class Woo_Stock_Sync_Admin {
 	public function enqueue_scripts() {
 		wp_enqueue_style( 'woo-stock-sync-admin-css', WOO_STOCK_SYNC_DIR_URL . 'public/admin/css/woo-stock-sync-admin.css', [ 'woocommerce_admin_styles', 'wp-jquery-ui-dialog' ], WOO_STOCK_SYNC_VERSION );
 
-		wp_enqueue_script( 'woo-stock-sync-admin-js', WOO_STOCK_SYNC_DIR_URL . 'public/admin/js/woo-stock-sync-admin.js', [ 'jquery', 'wc-enhanced-select', 'jquery-tiptip', 'jquery-ui-dialog' ], WOO_STOCK_SYNC_VERSION );
+		wp_enqueue_script( 'woo-stock-sync-admin-js', WOO_STOCK_SYNC_DIR_URL . 'public/admin/js/woo-stock-sync-admin.js', [ 'jquery', 'wc-enhanced-select', 'jquery-tiptip', 'jquery-ui-dialog', 'wc-backbone-modal' ], WOO_STOCK_SYNC_VERSION );
 
 		$is_report_page = isset( $_GET['page'] ) && $_GET['page'] === 'woo-stock-sync-report';
 		$is_settings_page = isset( $_GET['page'], $_GET['tab'] ) && $_GET['page'] === 'wc-settings' && $_GET['tab'] === 'woo_stock_sync';
@@ -381,6 +445,7 @@ class Woo_Stock_Sync_Admin {
 
 			if ( $log ) {
 				$rows = Woo_Stock_Sync_Logger::entry_rows( $log );
+				$results = Woo_Stock_Sync_Logger::result_rows( $log );
 			}
 		}
 
@@ -408,15 +473,27 @@ class Woo_Stock_Sync_Admin {
 	}
 
 	/**
-	 * View last response for failed API check
+	 * View response details for failed API check or log entry
 	 */
-	public function view_last_response() {
+	public function view_response() {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			http_response_code( 403 );
 			die( 'Permission denied' );
 		}
 
-		$data = get_option( 'wss_last_response', [] );
+		// If we have log ID, show response data from that
+		if ( isset( $_GET['log_id'] ) && $_GET['site_key'] ) {
+			$entry = Woo_Stock_Sync_Logger::get( $_GET['log_id'] );
+
+			$results = isset( $entry->data->sync_results ) ? (array) $entry->data->sync_results : [];
+
+			$data = isset( $results[$_GET['site_key']]->error_data ) ? (array) $results[$_GET['site_key']]->error_data : [];
+		}
+		// Otherwise show last response from API Check
+		else {
+			$data = get_option( 'wss_last_response', [] );
+		}
+
 		$code = isset( $data['code'] ) ? $data['code'] : __( 'N/A', 'woo-stock-sync' );
 		$body = isset( $data['body'] ) ? $data['body'] : __( 'N/A', 'woo-stock-sync' );
 		$headers = isset( $data['headers'] ) ? $data['headers'] : false;

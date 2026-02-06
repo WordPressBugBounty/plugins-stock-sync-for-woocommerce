@@ -42,6 +42,15 @@ class Woo_Stock_Sync_Api_Check {
 	}
 
 	/**
+	 * Check URL format
+	 */
+	public function check_url_format() {
+		if ( strpos( $this->url, 'http://' ) !== 0 && strpos( $this->url, 'https://' ) !== 0 ) {
+			$this->errors[] = __( 'URL should start with <em>https://</em> or <em>http://</em>', 'woo-stock-sync' );
+		}
+	}
+
+	/**
 	 * Check format
 	 */
 	public function check_format() {
@@ -85,7 +94,7 @@ class Woo_Stock_Sync_Api_Check {
 						return;
 					}
 
-					$this->errors[] = sprintf( __( '<strong>%s</strong> is redirecting to <strong>%s</strong>. Please use <strong>%s</strong> as the URL.', 'woo-stock-sync' ), $this->url, $location, $location );
+					$this->errors[] = sprintf( __( '<strong>%s</strong> is redirecting to <strong>%s</strong>. This is not a critical issue if other tests pass.', 'woo-stock-sync' ), $this->url, $location, $location );
 				} else {
 					$headers = wp_remote_retrieve_headers( $response );
 					if ( is_callable( [ $headers, 'getAll'] ) ) {
@@ -100,8 +109,8 @@ class Woo_Stock_Sync_Api_Check {
 						'headers' => $headers,
 					] );
 
-					$url = admin_url( 'admin-ajax.php?action=wss_view_last_response' );
-					$this->errors[] = sprintf( __( 'Invalid response code %s. <a href="%s" target="_blank">View response for debugging &raquo;</a>', 'woo-stock-sync' ), $code, $url );
+					$url = admin_url( 'admin-ajax.php?action=wss_view_response' );
+					$this->errors[] = sprintf( __( 'Invalid response code %s. This is not a critical issue if other tests pass. <a href="%s" target="_blank">View response for debugging &raquo;</a>.', 'woo-stock-sync' ), $code, $url );
 				}
 			}
 		} else {
@@ -136,7 +145,7 @@ class Woo_Stock_Sync_Api_Check {
 					'headers' => $response->getHeaders(),
 				] );
 
-				$url = admin_url( 'admin-ajax.php?action=wss_view_last_response' );
+				$url = admin_url( 'admin-ajax.php?action=wss_view_response' );
 				$this->errors[] = sprintf( __( 'Website responsed in a way that could not be understood. <a href="%s" target="_blank">View response for debugging &raquo;</a>', 'woo-stock-sync' ), $url );
 			}
 		} catch ( \Exception $e ) {
@@ -161,7 +170,7 @@ class Woo_Stock_Sync_Api_Check {
 			$response = $e->getResponse();
 			$request = $e->getRequest();
 
-			$url = admin_url( 'admin-ajax.php?action=wss_view_last_response' );
+			$url = admin_url( 'admin-ajax.php?action=wss_view_response' );
 			update_option( 'wss_last_response', [
 				'code' => $response->getCode(),
 				'body' => $response->getBody(),
@@ -218,7 +227,7 @@ class Woo_Stock_Sync_Api_Check {
 					'headers' => $response->getHeaders(),
 				] );
 
-				$url = admin_url( 'admin-ajax.php?action=wss_view_last_response' );
+				$url = admin_url( 'admin-ajax.php?action=wss_view_response' );
 				$this->errors[] = sprintf( __( 'Website responsed in a way that could not be understood. <a href="%s" target="_blank">View response for debugging &raquo;</a>', 'woo-stock-sync' ), $url );
 			}
 		} catch ( \Exception $e ) {
@@ -260,7 +269,7 @@ class Woo_Stock_Sync_Api_Check {
 					'headers' => $response->getHeaders(),
 				] );
 
-				$url = admin_url( 'admin-ajax.php?action=wss_view_last_response' );
+				$url = admin_url( 'admin-ajax.php?action=wss_view_response' );
 				$this->errors[] = sprintf( __( 'Usually this means that the API user does not have role "Administrator". <a href="%s" target="_blank">View response for debugging &raquo;</a>', 'woo-stock-sync' ), $url );
 			} else if ( $response->getCode() === 404 ) {
 				return;
@@ -271,7 +280,7 @@ class Woo_Stock_Sync_Api_Check {
 					'headers' => $response->getHeaders(),
 				] );
 
-				$url = admin_url( 'admin-ajax.php?action=wss_view_last_response' );
+				$url = admin_url( 'admin-ajax.php?action=wss_view_response' );
 				$this->errors[] = sprintf( __( 'Website responsed in a way that could not be understood. <a href="%s" target="_blank">View response for debugging &raquo;</a>', 'woo-stock-sync' ), $url );
 			}
 		} catch ( \Exception $e ) {

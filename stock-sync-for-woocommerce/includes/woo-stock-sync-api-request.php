@@ -20,8 +20,12 @@ class Woo_Stock_Sync_Api_Request {
 	/**
 	 * Push multiple changes in one request
 	 */
-	public function push_multiple( $data, $site ) {
+	public function push_multiple( $data, $site, $idempotency_key = false ) {
 		update_option( 'wss_last_sync', time() );
+
+		if ( ! $idempotency_key ) {
+			$idempotency_key = sprintf( 'wss_%s', uniqid() );
+		}
 
 		$client = $this->get_api_client( $site );
 
@@ -32,6 +36,9 @@ class Woo_Stock_Sync_Api_Request {
 			'woo_stock_sync_source' => get_site_url(),
 			'woo_stock_sync_source_role' => wss_get_role(),
 			'context' => 'edit',
+			'_fields' => [
+				'id', 'sku', 'stock_quantity', 'name', 'parent_id'
+			]
 		];
 
 		$params = ['update' => []];
@@ -90,36 +97,58 @@ class Woo_Stock_Sync_Api_Request {
 		$params['woo_stock_sync_source'] = get_site_url();
 		$params['woo_stock_sync_source_role'] = wss_get_role();
 		$params['context'] = 'edit';
+		$params['idempotency_key'] = $idempotency_key;
 
 		$params = apply_filters( 'wss_params_push_multiple', $params, $data, $site );
 
 		try {
 			$client->post( "stock-sync-batch", $params );
 		} catch ( \Exception $e ) {
+			$error_data = [];
 			$this->errors['exception_update'] = sprintf( __( "Exception while trying to push multiple changes. Message: %s", 'woo-stock-sync' ), $e->getMessage() );
 
 			if ( is_a( $e, 'Automattic\WooCommerce\HttpClient\HttpClientException' ) ) {
 				$this->response = $e->getResponse();
+
+				$error_data = [
+					'code' => $this->response ? $this->response->getCode() : 'N/A',
+					'headers' => $this->response ? $this->response->getHeaders() : [],
+					'body' => $this->response ? substr( $this->response->getBody(), 0, 65535 ) : 'N/A',
+				];
 			}
 
 			if ( wss_is_primary() ) {
 				foreach ( $params['update'] as $row ) {
-					Woo_Stock_Sync_Logger::log_update( $row['log_id'], $site['key'], false, $this->errors, 'error' );
+					Woo_Stock_Sync_Logger::log_update( $row['log_id'], $site['key'], false, $this->errors, 'error', $error_data );
 
 					wss_update_mismatch_data( $skus[$row['sku_param']], $site['key'] );
 				}
 			} else {
 				// Log complete failure
-				Woo_Stock_Sync_Logger::log(
-					sprintf( __( 'Failed to sync multiple changes. Changes:<br>%s<br>Errors: %s', 'woo-stock-sync' ), implode( '<br>', $changes ), $e->getMessage() ),
-					'error',
-					null,
-					[
-						'source' => get_site_url(),
-						'source_desc' => isset( $row['source_desc'] ) ? $row['source_desc'] : null,
-						'source_url' => isset( $row['source_url'] ) ? $row['source_url'] : null,
-					]
-				);
+				if ( ! isset( $GLOBALS['wss_log_ids'][$idempotency_key] ) ) {
+					$log_id = Woo_Stock_Sync_Logger::log(
+						sprintf( __( 'Failed to sync multiple changes. Changes:<br>%s<br>Errors: %s', 'woo-stock-sync' ), implode( '<br>', $changes ), $e->getMessage() ),
+						'error',
+						null,
+						[
+							'source' => get_site_url(),
+							'source_desc' => isset( $row['source_desc'] ) ? $row['source_desc'] : null,
+							'source_url' => isset( $row['source_url'] ) ? $row['source_url'] : null,
+						]
+					);
+				} else {
+					$log_id = $GLOBALS['wss_log_ids'][$idempotency_key];
+				}
+
+				// Add error data for the site
+				Woo_Stock_Sync_Logger::log_update( $log_id, $site['key'], false, $this->errors, 'error', $error_data );
+
+				// This will be used to handle retry, otherwise it would cause
+				// two entries in the log
+				if ( ! isset( $GLOBALS['wss_log_ids'] ) ) {
+					$GLOBALS['wss_log_ids'] = [];
+				}
+				$GLOBALS['wss_log_ids'][$idempotency_key] = $log_id;
 			}
 
 			return false;
@@ -218,6 +247,7 @@ class Woo_Stock_Sync_Api_Request {
 				'sku' => implode( ',', $skus ),
 				'per_page' => 100,
 				'context' => 'edit',
+				'_fields' => [ 'id', 'sku', 'stock_quantity', 'name', 'parent_id' ]
 			] );
 		} catch ( \Exception $e ) {
 			$this->errors['exception_update'] = sprintf( __( "Exception while trying to update sync status. Message: %s", 'woo-stock-sync' ), $e->getMessage() );

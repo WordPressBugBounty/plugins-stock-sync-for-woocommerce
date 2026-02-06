@@ -31,8 +31,6 @@
         </select>
 
         <input type="submit" name="filter_action" id="post-query-submit" class="button" value="<?php esc_attr_e( 'Filter', 'woo-stock-sync' ); ?>">
-
-        <a href="<?php echo wp_nonce_url( admin_url( 'admin-ajax.php?action=wss_clear_logs' ), 'wss-clear-logs' ); ?>" class="wss-clear-logs"><?php esc_html_e( 'Clear logs &raquo;', 'woo-stock-sync' ); ?></a>
       </div>
     
       <?php echo $pagination; ?>
@@ -70,12 +68,13 @@
             <td>
               <?php foreach ( $sites as $i => $site ) { ?>
                 <?php $entry = wss_transform_results( $log, $site ); ?>
-                <span
-                  class="wss-sync-result wss-tip sync-result-<?php echo esc_attr( $entry->level ); ?>"
+                <a
+                  class="wss-view-log wss-sync-result wss-tip sync-result-<?php echo esc_attr( $entry->level ); ?>"
                   data-tip="<?php echo esc_attr( $entry->msg ); ?>"
+                  data-log-id="<?php echo $log->id; ?>"
                 >
                   <?php echo esc_attr( $entry->site ); ?>
-                </span>
+                </a>
               <?php } ?>
             </td>
           </tr>
@@ -93,16 +92,24 @@
         <?php } ?>
       </tbody>
     </table>
-    <div class="wss-descs">
-      <?php foreach ( $sites as $i => $site ) { ?>
-        <span class="desc"><span class="wss-sync-result sync-result-success"><?php echo esc_html( $site['letter'] ); ?></span>&nbsp;<?php echo esc_html( $site['formatted_url'] ); ?></span>
-      <?php } ?>
-    </div>
 
-    <div class="wss-descs">
-      <span class="desc"><span class="wss-sync-result sync-result-success"></span> OK</span>
-      <span class="desc"><span class="wss-sync-result sync-result-warning"></span> Warning</span>
-      <span class="desc"><span class="wss-sync-result sync-result-error"></span> Error</span>
+    <div id="wss-report-footer">
+      <div class="wss-desc-container">
+        <div class="wss-descs">
+          <?php foreach ( $sites as $i => $site ) { ?>
+            <span class="desc"><span class="wss-sync-result sync-result-success"><?php echo esc_html( $site['letter'] ); ?></span>&nbsp;<?php echo esc_html( $site['formatted_url'] ); ?></span>
+          <?php } ?>
+        </div>
+        <div class="wss-descs">
+          <span class="desc"><span class="wss-sync-result sync-result-success"></span> OK</span>
+          <span class="desc"><span class="wss-sync-result sync-result-warning"></span> Warning</span>
+          <span class="desc"><span class="wss-sync-result sync-result-error"></span> Error</span>
+        </div>
+      </div>
+
+      <div class="wss-clear-log">
+        <a href="<?php echo wp_nonce_url( admin_url( 'admin-ajax.php?action=wss_clear_logs' ), 'wss-clear-logs' ); ?>" class="wss-clear-logs"><?php esc_html_e( 'Delete all logs &raquo;', 'woo-stock-sync' ); ?></a>
+      </div>
     </div>
   </form>
 </div>

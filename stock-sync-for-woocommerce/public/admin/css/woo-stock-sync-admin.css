@@ -1,32 +1,5 @@
 /* compile */
 /**
- * Check credentials in the settings page
- */
-.woo-stock-sync-check-credentials-indicator {
-  display: inline-block;
-  width: auto;
-  height: 30px;
-  line-height: 30px;
-  background-repeat: no-repeat;
-  background-position: left center;
-  margin-left: 10px;
-  padding-left: 21px;
-  vertical-align: top;
-}
-
-.woo-stock-sync-check-credentials-processing {
-  background-image: url("../img/wpspin_light.gif");
-}
-
-.woo-stock-sync-check-credentials-success {
-  background-image: url("../img/yes.png");
-}
-
-.woo-stock-sync-check-credentials-fail {
-  background-image: url("../img/no.png");
-}
-
-/**
  * API credentials table
  */
 td.forminp-wss_credentials_table > table th,
@@ -120,6 +93,10 @@ td.forminp-wss_credentials_table > table .pro-sites {
 
 .wss-api-check-dialog-container #wss-api-check-app table .wss-check-status.ok {
   background-image: url("../img/yes.png");
+}
+
+.wss-api-check-dialog-container #wss-api-check-app table .wss-check-status.warning {
+  background-image: url("../img/warning.png");
 }
 
 .wss-api-check-dialog-container #wss-api-check-app .wss-api-check-ok {
@@ -268,7 +245,24 @@ td.forminp-wss_credentials_table > table .pro-sites {
   margin-bottom: 10px;
 }
 
-#woo-stock-sync-report a.wss-clear-logs {
+#woo-stock-sync-report #wss-report-footer {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+}
+
+#woo-stock-sync-report #wss-report-footer .wss-desc-container {
+  width: 50%;
+  flex: auto;
+}
+
+#woo-stock-sync-report #wss-report-footer .wss-clear-log {
+  text-align: right;
+  flex: auto;
+  width: 50%;
+}
+
+#woo-stock-sync-report #wss-report-footer .wss-clear-log a.wss-clear-logs {
   text-decoration: none;
   line-height: 14px;
   padding: 8px 0;
@@ -325,6 +319,11 @@ td.forminp-wss_credentials_table > table .pro-sites {
   line-height: 16px;
   font-size: 12px;
   vertical-align: text-top;
+}
+
+.wss-sync-result:hover {
+  text-decoration: none;
+  color: #fff;
 }
 
 .wss-sync-result.sync-result-info {
@@ -460,6 +459,34 @@ td.forminp-wss_credentials_table > table .pro-sites {
   border: 1px solid #ffe066;
   padding: 10px 20px;
   margin: 20px 0;
+}
+
+/**
+ * Labels
+ */
+.wss-label.wss-label-ok {
+  color: #2b8a3e;
+}
+
+.wss-label.wss-label-error {
+  color: #c92a2a;
+}
+
+.wss-label.wss-label-warning {
+  color: #e67700;
+}
+
+.wss-label.wss-label-info {
+  color: #1864ab;
+}
+
+.wss-label.wss-label-na {
+  color: #495057;
+}
+
+.wss-help {
+  color: #495057;
+  font-size: 0.9em;
 }
 
 /**

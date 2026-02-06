@@ -62,5 +62,22 @@ class Woo_Stock_Sync_Frontend {
 		if ( $retention > 0 ) {
 			Woo_Stock_Sync_Logger::delete_records( $retention );
 		}
+
+		$this->clean_requests();
+	}
+
+	/**
+	 * Clean requests
+	 */
+	public function clean_requests() {
+		global $wpdb;
+
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->prefix}wss_requests
+				WHERE created_at < DATE_SUB(%s, INTERVAL 1 DAY)",
+				current_time( 'mysql' )
+			)
+		);
 	}
 }

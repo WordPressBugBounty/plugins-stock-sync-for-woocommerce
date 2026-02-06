@@ -2,9 +2,9 @@
 Contributors: wooelements
 Tags: woocommerce, stock synchronization, shared stock
 Requires at least: 4.5
-Tested up to: 6.8
+Tested up to: 6.9
 Requires PHP: 7.0
-Stable tag: 2.9.1
+Stable tag: 2.10.0
 License: GPLv2
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -63,6 +63,16 @@ Stock Sync is installed just like any other WordPress plugin.
 Once the plugin is activated, you need to set up API credentials and import stock quantities from one store to the other. Please see [the documentation](https://wptrio.com/guide/getting-started-with-woocommerce-stock-sync-pro/).
 
 == Changelog ==
+
+= 2.10.0 =
+
+* Added URL format to API Check
+* Added web hosting IP address to **WooCommerce > Status > System status > IP Address**. This is useful if the website has to be whitelisted for Cloudflare or similar WAF based on IP address
+* Improved retry logic to prevent duplicate stock reduction / increase if the initial request stalls
+* Improved syncing performance and reduced bandwidth it uses
+* The log now provides debugging information for syntax errors which occur when there is a connection issue between the sites (e.g. firewall blocks the plugin)
+* Renamed **Clear logs** to **Delete all logs** and moved it to the bottom of the report to highlight its destructive nature
+* Minor UI improvements and fixes
 
 = 2.9.1 =
 

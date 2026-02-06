@@ -53,9 +53,13 @@ class Woo_Stock_Sync_Process extends WP_Async_Request {
 	/**
 	 * Push multiple changes to a site
 	 */
-	private function push_multiple( $site, $retry = false, $rows = null ) {
+	private function push_multiple( $site, $retry = false, $rows = null, $idempotency_key = false ) {
 		if ( ! isset( $rows ) ) {
 			$rows = $_POST['bulk_changes'];
+		}
+
+		if ( ! $idempotency_key ) {
+			$idempotency_key = sprintf( 'wss_%s', uniqid() );
 		}
 
 		$data = [];
@@ -77,12 +81,12 @@ class Woo_Stock_Sync_Process extends WP_Async_Request {
 		}
 
 		$api = new Woo_Stock_Sync_Api_Request();
-		$result = $api->push_multiple( $data, $site );
+		$result = $api->push_multiple( $data, $site, $idempotency_key );
 
 		// Request failed altogether, retry
 		if ( $result === false ) {
-			if ( ! $retry ) {
-				$this->push_multiple( $site, true, $rows );
+			if ( ! $retry && apply_filters( 'woo_stock_sync_allow_retry', true, $site ) ) {
+				$this->push_multiple( $site, true, $rows, $idempotency_key );
 			}
 		}
 	}

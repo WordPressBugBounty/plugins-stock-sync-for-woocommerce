@@ -354,6 +354,13 @@ class WC_REST_Stock_Sync_Controller extends WC_REST_Products_V2_Controller {
 	public function batch_items( $request ) {
 		update_option( 'wss_last_sync', time() );
 
+		$concurrency = $this->handle_concurrency( $request );
+
+		// We got previously completed request, let's return its response
+		if ( is_array( $concurrency ) && ! empty( $concurrency ) ) {
+			return $concurrency;
+		}
+
 		/**
 		 * REST Server
 		 *
@@ -385,12 +392,122 @@ class WC_REST_Stock_Sync_Controller extends WC_REST_Products_V2_Controller {
 				} else {
 					$item_response = $wp_rest_server->response_to_data( $_response, '' );
 					$item_response['log_id'] = isset( $item['log_id'] ) ? $item['log_id'] : null;
+
+					unset( $item_response['_links'] ); // not needed, save bandwidth
+
 					$response['update'][] = $item_response;
 				}
 			}
 		}
 
+		$this->release_lock( $request, $response );
+
 		return $response;
+	}
+
+	/**
+	 * Check if we have request with certain status
+	 */
+	public function has_request_with_status( $request, $status ) {
+		// Request originated from older Stock Sync Pro version,
+		// skip
+		if ( ! isset( $request['idempotency_key'] ) ) {
+			return false;
+		}
+
+		$key = $request['idempotency_key'];
+
+		global $wpdb;
+
+		return $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}wss_requests WHERE idempotency_key = %s AND status = %s",
+				$key,
+				$status
+			)
+		);
+	}
+
+	/**
+	 * Handle concurrency
+	 */
+	public function handle_concurrency( $request ) {
+		// Request originated from older Stock Sync Pro version,
+		// skip
+		if ( ! isset( $request['idempotency_key'] ) ) {
+			return;
+		}
+
+		global $wpdb;
+
+		$table = "{$wpdb->prefix}wss_requests";
+		if ( ! $wpdb->get_var( "SHOW TABLES LIKE '{$table}'" ) == $table ) {
+			return;
+		}
+
+		// Check if we have completed request already 
+		if ( $row = $this->has_request_with_status( $request, 'completed' ) ) {
+			return unserialize( $row->data );
+		}
+
+		$key = $request['idempotency_key'];
+
+		for ( $attempts = 0; $attempts < 20; $attempts++ ) {
+			$acquired = $wpdb->query(
+				$wpdb->prepare(
+					"INSERT IGNORE INTO {$wpdb->prefix}wss_requests (idempotency_key, status, created_at) 
+					VALUES (%s, 'pending', %s)",
+					$key,
+					current_time( 'mysql' )
+				)
+			);
+
+			// If we acquired the lock, break out to continue
+			// processing
+			if ( $acquired ) {
+				break;
+			}
+
+			// Otherwise wait for 1 second and try again
+			sleep( 1 );
+
+			// Check if we completed the earlier request while waiting
+			if ( $row = $this->has_request_with_status( $request, 'completed' ) ) {
+				return unserialize( $row->data );
+			}
+		}
+
+		// This is not perfect currently as we don't know at this point if
+		// the earlier process crashed, stalled or is still processing
+		// but we will process the request in the calling function
+		// in any case
+		return (bool) $acquired;
+	}
+
+	/**
+	 * Release lock
+	 */
+	public function release_lock( $request, $response ) {
+		// Request originated from older Stock Sync Pro version,
+		// skip
+		if ( ! isset( $request['idempotency_key'] ) ) {
+			return false;
+		}
+
+		global $wpdb;
+
+		$wpdb->update(
+			$wpdb->prefix . 'wss_requests',
+			[
+				'status' => 'completed',
+				'data' => serialize( $response ),
+				'completed_at' => current_time('mysql'),
+				'updated_at' => current_time('mysql'),
+			],
+			[ 'idempotency_key' => $request['idempotency_key'] ],
+			[ '%s', '%s', '%s', '%s' ],
+			[ '%s' ],
+		);
 	}
 }
 

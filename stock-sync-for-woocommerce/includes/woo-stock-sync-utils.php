@@ -142,6 +142,7 @@ function wss_products_with_children( $products ) {
  * Format site URL
  */
 function wss_format_site_url( $url, $link = false ) {
+	$url = rtrim( $url, '/' );
 	$title = str_replace( ['https://', 'http://'], '', $url );
 
 	if ( $link ) {
@@ -532,7 +533,7 @@ function wss_product_to_json( $product, $flush_cache = false, $variation_indent 
 			$ext_url = add_query_arg( [
 				'post' => $url_id,
 				'action' => 'edit',
-			], $site['url'] . '/wp-admin/post.php' );
+			], rtrim( $site['url'], '/' ) . '/wp-admin/post.php' );
 
 			$site_data = [
 				'id' => $data[$site['key']]['id'],

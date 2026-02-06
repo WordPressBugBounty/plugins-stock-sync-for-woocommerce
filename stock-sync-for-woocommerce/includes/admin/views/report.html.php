@@ -72,7 +72,7 @@
                 <span v-if="! product.site_qtys[site.key].processing">
                   <a v-if="product.site_qtys[site.key].url" :href="product.site_qtys[site.key].url" target="_blank">{{ product.site_qtys[site.key].qty }}</a>
                 </span>
-                <span v-if="! product.site_qtys[site.key].processing && ! product.editing_qty && product.site_qtys[site.key].qty != product.qty && product.site_qtys[site.key].qty" class="wss-icon warning"></span>
+                <span v-if="! product.site_qtys[site.key].processing && ! product.editing_qty && product.site_qtys[site.key].qty != product.qty && (! isNaN(String(product.site_qtys[site.key].qty)))" class="wss-icon warning"></span>
                 <span v-if="product.site_qtys[site.key].processing" class="wss-icon process"></span>
               </td>
               <td>

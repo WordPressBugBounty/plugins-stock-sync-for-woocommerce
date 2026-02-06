@@ -85,7 +85,7 @@ class Woo_Stock_Sync_Logger {
 	/**
 	 * Update log message about whether or not site syncing succeeded
 	 */
-	public static function log_update( $id, $site_keys, $result, $errors = [], $level = '' ) {
+	public static function log_update( $id, $site_keys, $result, $errors = [], $level = '', $error_data = [] ) {
 		if ( empty( $id ) ) {
 			return;
 		}
@@ -110,6 +110,7 @@ class Woo_Stock_Sync_Logger {
 					'level' => $level,
 					'result' => $result,
 					'errors' => $errors,
+					'error_data' => $error_data
 				];
 			}
 
@@ -369,6 +370,56 @@ class Woo_Stock_Sync_Logger {
 			$rows[] = [
 				'label' => __( 'CLI', 'woo-stock-sync' ),
 				'value' => $log->data->is_cli ? __( 'Yes', 'woo-stock-sync' ) : __( 'No', 'woo-stock-sync' ),
+			];
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Rows for the syncing results
+	 */
+	public static function result_rows( $log ) {
+		$results = isset( $log->data->sync_results ) ? (array) $log->data->sync_results : [];
+
+		$rows = [];
+		foreach ( woo_stock_sync_sites() as $site ) {
+			$data = isset( $results[$site['key']] ) ? $results[$site['key']] : false;
+			$errors = isset( $data->errors ) ? (array) $data->errors : [];
+			$errors_str = implode( "\n", $errors );
+			$msg = '';
+			$level = '';
+			$more_url = false;
+
+			// Results not available, show N/A in the log
+			if ( $data === false ) {
+				$msg = __( 'Not available', 'woo-stock-sync' );
+				$level = 'na';
+			}
+			// Everything OK
+			else if ( isset( $data->result ) && $data->result ) {
+				$level = 'success';
+				$msg = __( 'Synced', 'woo-stock-sync' );
+			}
+			// Level is set, use it directly
+			else if ( isset( $data->level ) && ! empty( $data->level ) ) {
+				$level = $data->level;
+				$msg = $errors_str;
+
+				if ( isset( $data->error_data ) && ! empty( $data->error_data ) ) {
+					$more_url = add_query_arg( [
+						'action' => 'wss_view_response',
+						'log_id' => $log->id,
+						'site_key' => $site['key'],
+					], admin_url( 'admin-ajax.php' ) );
+				}
+			}
+
+			$rows[] = [
+				'site' => $site['formatted_url'],
+				'level' => $level,
+				'msg' => $msg,
+				'more_url' => $more_url,
 			];
 		}
 

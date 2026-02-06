@@ -15,6 +15,10 @@ jQuery(document).ready(function($){
         title: 'test',
         checks: [
           {
+            id: 'url_format',
+            title: 'URL is formatted correctly',
+          },
+          {
             id: 'format',
             title: 'Credentials are formatted correctly',
           },
@@ -40,6 +44,7 @@ jQuery(document).ready(function($){
           },
         ],
         statuses: {
+          'url_format': 'waiting',
           'format': 'waiting',
           'url': 'waiting',
           'rest_api': 'waiting',
@@ -48,6 +53,7 @@ jQuery(document).ready(function($){
           'privileges': 'waiting',
         },
         errors: {
+          'url_format': [],
           'format': [],
           'url': [],
           'rest_api': [],
@@ -105,14 +111,21 @@ jQuery(document).ready(function($){
                 var status = 'ok'; 
                 self.errors[check.id] = [];
               } else {
-                var status = 'error';
+                // URL is not critical issue if other tests
+                // pass
+                if (check.id == 'url') {
+                  var status = 'warning';
+                } else {
+                  var status = 'error';
+                }
+
                 self.errors[check.id] = response.errors;
               }
   
               self.statuses[check.id] = status;
   
               // If all good move on to the next test
-              if (status == 'ok') {
+              if (status == 'ok' || check.id == 'url') {
                 self.runIndex += 1;
                 
                 if (self.runIndex < self.checks.length) {
@@ -149,6 +162,11 @@ jQuery(document).ready(function($){
       this.triggerCredentialCheck();
       this.triggerSettingsUpdate();
       this.addSite();
+
+      // Always enable "Save changes" button
+      if ( $( '#woo_stock_sync_enabled' ).length > 0 ) {
+        $( '.woocommerce-save-button' ).removeAttr( 'disabled' );
+      }
     },
 
     /**
@@ -239,7 +257,7 @@ jQuery(document).ready(function($){
      */
     clearLogsConfirm: function() {
       $( document ).on( 'click', 'a.wss-clear-logs', function( e ) {
-        return confirm( 'Are you sure you want to clear the logs? This action cannot be undone.' );
+        return confirm( 'Are you sure you want to delete all logs? This action cannot be undone.' );
       } );
     },
 

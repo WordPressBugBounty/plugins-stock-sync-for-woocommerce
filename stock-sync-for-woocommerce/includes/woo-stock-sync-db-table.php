@@ -8,24 +8,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 global $wss_db_version;
-$wss_db_version = '1.1';
+$wss_db_version = '1.6';
 
 register_activation_hook( WOO_STOCK_SYNC_FILE, function() {
 	wporg_wss_install_db_table();
 } );
 
 /**
- * Create / update log table
+ * Create / update tables
  */
 function wporg_wss_install_db_table() {
+	require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+
 	global $wpdb;
 	global $wss_db_version;
 
-	$table_name = $wpdb->prefix . 'wss_log';
-	
 	$charset_collate = $wpdb->get_charset_collate();
-
-	$sql = "CREATE TABLE $table_name (
+	
+	$table_name = $wpdb->prefix . 'wss_log';
+	$sql_log_table = "CREATE TABLE $table_name (
 		id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 		product_id bigint(20) unsigned,
 		type varchar(255) default '',
@@ -36,8 +37,22 @@ function wporg_wss_install_db_table() {
 		PRIMARY KEY  (id)
 	) $charset_collate;";
 
-	require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
-	dbDelta( $sql );
+	dbDelta( $sql_log_table );
+
+	$table_name = $wpdb->prefix . 'wss_requests';
+	$sql_request_table = "CREATE TABLE $table_name (
+		id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+		idempotency_key varchar(100) default '',
+		status varchar(20) default '',
+		data longtext,
+		created_at datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+		updated_at datetime DEFAULT '0000-00-00 00:00:00',
+		completed_at datetime DEFAULT '0000-00-00 00:00:00',
+		PRIMARY KEY  (id),
+		UNIQUE KEY idempotency_key (idempotency_key)
+	) $charset_collate;";
+
+	dbDelta( $sql_request_table );
 
 	update_option( 'wss_db_version', $wss_db_version );
 }
