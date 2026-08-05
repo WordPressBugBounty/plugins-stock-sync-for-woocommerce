@@ -546,6 +546,8 @@ function wss_product_to_json( $product, $flush_cache = false, $variation_indent 
 		$sites_qty[$site['key']] = $site_data;
 	}
 
+	$log_url = admin_url( sprintf( 'admin.php?page=woo-stock-sync-report&action=log&product_id=%d', $product->get_id() ) );
+
 	return [
 		'title' => wss_get_product_title( $product, $variation_indent ),
 		'id' => $product->get_id(),
@@ -556,6 +558,7 @@ function wss_product_to_json( $product, $flush_cache = false, $variation_indent 
 		'site_qtys' => $sites_qty,
 		'status' => 'default',
 		'status_qty' => 'default',
+		'log_url' => $log_url,
 	];
 }
 

@@ -36,9 +36,9 @@ class Woo_Stock_Sync_Api_Request {
 			'woo_stock_sync_source' => get_site_url(),
 			'woo_stock_sync_source_role' => wss_get_role(),
 			'context' => 'edit',
-			'_fields' => [
-				'id', 'sku', 'stock_quantity', 'name', 'parent_id'
-			]
+			#'_fields' => [
+			#	'id', 'sku', 'stock_quantity', 'name', 'parent_id'
+			#]
 		];
 
 		$params = ['update' => []];
@@ -101,8 +101,13 @@ class Woo_Stock_Sync_Api_Request {
 
 		$params = apply_filters( 'wss_params_push_multiple', $params, $data, $site );
 
+		$duration = false;
+
 		try {
+			$start = microtime( true );
 			$client->post( "stock-sync-batch", $params );
+			$end = microtime( true );
+			$duration = $end - $start;
 		} catch ( \Exception $e ) {
 			$error_data = [];
 			$this->errors['exception_update'] = sprintf( __( "Exception while trying to push multiple changes. Message: %s", 'woo-stock-sync' ), $e->getMessage() );
@@ -156,7 +161,11 @@ class Woo_Stock_Sync_Api_Request {
 
 		$response = $client->http->getResponse();
 		if ( $response->getCode() === 200 ) {
-			$body = json_decode( $response->getBody() );
+			$body = $response->getBody();
+			if ( 0 === strpos( bin2hex( $body ), 'efbbbf' ) ) {
+				$body = substr( $body, 3 );
+			}
+			$body = json_decode( $body );
 
 			foreach ( $body->update as $ext_product ) {
 				$product_errors = [];
@@ -187,7 +196,7 @@ class Woo_Stock_Sync_Api_Request {
 				}
 
 				if ( wss_is_primary() && isset( $ext_product->log_id ) ) {
-					Woo_Stock_Sync_Logger::log_update( $ext_product->log_id, $site['key'], empty( $product_errors ), $product_errors, $level );
+					Woo_Stock_Sync_Logger::log_update( $ext_product->log_id, $site['key'], empty( $product_errors ), $product_errors, $level, [], $duration );
 				}
 			}
 
@@ -247,7 +256,7 @@ class Woo_Stock_Sync_Api_Request {
 				'sku' => implode( ',', $skus ),
 				'per_page' => 100,
 				'context' => 'edit',
-				'_fields' => [ 'id', 'sku', 'stock_quantity', 'name', 'parent_id' ]
+				#'_fields' => [ 'id', 'sku', 'stock_quantity', 'name', 'parent_id' ]
 			] );
 		} catch ( \Exception $e ) {
 			$this->errors['exception_update'] = sprintf( __( "Exception while trying to update sync status. Message: %s", 'woo-stock-sync' ), $e->getMessage() );
@@ -261,7 +270,11 @@ class Woo_Stock_Sync_Api_Request {
 
 		$response = $client->http->getResponse();
 		if ( $response->getCode() === 200 ) {
-			$results = json_decode( $response->getBody() );
+			$body = $response->getBody();
+			if ( 0 === strpos( bin2hex( $body ), 'efbbbf' ) ) {
+				$body = substr( $body, 3 );
+			}
+			$results = json_decode( $body );
 
 			foreach ( $results as $result ) {
 				$ext_products[$result->sku] = $result;

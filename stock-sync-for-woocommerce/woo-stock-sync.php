@@ -3,7 +3,7 @@
 /*
 Plugin Name: Stock Sync for WooCommerce
 Description: Stock synchronization for WooCommerce. Share same product stock in two WooCommerce stores.
-Version:     2.10.0
+Version:     2.11.0
 Author:      Lauri Karisola / WP Trio
 Author URI:  https://wptrio.com
 Text Domain: woo-stock-sync
@@ -82,7 +82,7 @@ class Woo_Stock_Sync {
 		}
 
 		if ( ! defined( 'WOO_STOCK_SYNC_VERSION' ) ) {
-			define( 'WOO_STOCK_SYNC_VERSION', '2.10.0' );
+			define( 'WOO_STOCK_SYNC_VERSION', '2.11.0' );
 		}
 
 		if ( ! defined( 'WOO_STOCK_SYNC_BASENAME' ) ) {

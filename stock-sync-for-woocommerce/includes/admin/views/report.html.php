@@ -75,10 +75,11 @@
                 <span v-if="! product.site_qtys[site.key].processing && ! product.editing_qty && product.site_qtys[site.key].qty != product.qty && (! isNaN(String(product.site_qtys[site.key].qty)))" class="wss-icon warning"></span>
                 <span v-if="product.site_qtys[site.key].processing" class="wss-icon process"></span>
               </td>
-              <td>
-                <a href="#" v-on:click.prevent="pushQtys( product )" class="button" v-bind:disabled="! product.sku || ! product.managing_stock"><?php _e( 'Push', 'woo-stock-sync' ); ?></a>
+              <td class="wss-actions">
+                <a href="#" v-on:click.prevent="pushQtys( product )" class="button" v-bind:disabled="! product.sku || ! product.managing_stock"><?php esc_html_e( 'Push', 'woo-stock-sync' ); ?></a>
                 <span class="wss-icon completed" v-if="product.status === 'completed'"></span>
                 <span class="wss-icon process" v-if="product.status === 'processing'"></span>
+                <a :href="product.log_url" target="_blank" class="button"><?php esc_html_e( 'View log', 'woo-stock-sync' ); ?></a>
               </td>
             </tr>
           </tbody>

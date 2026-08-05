@@ -2,9 +2,9 @@
 Contributors: wooelements
 Tags: woocommerce, stock synchronization, shared stock
 Requires at least: 4.5
-Tested up to: 6.9
+Tested up to: 7.0
 Requires PHP: 7.0
-Stable tag: 2.10.0
+Stable tag: 2.11.0
 License: GPLv2
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -63,6 +63,13 @@ Stock Sync is installed just like any other WordPress plugin.
 Once the plugin is activated, you need to set up API credentials and import stock quantities from one store to the other. Please see [the documentation](https://wptrio.com/guide/getting-started-with-woocommerce-stock-sync-pro/).
 
 == Changelog ==
+
+= 2.11.0 =
+
+* Added sync duration to log entries
+* Added links to product logs on the report page
+* Improved the API Check 
+* Improved compatibility with third-party plugins
 
 = 2.10.0 =
 

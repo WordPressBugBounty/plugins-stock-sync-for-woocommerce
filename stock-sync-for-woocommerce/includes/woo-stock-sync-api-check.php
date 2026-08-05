@@ -63,6 +63,31 @@ class Woo_Stock_Sync_Api_Check {
 		if ( strpos( $this->secret, 'cs_' ) !== 0 ) {
 			$this->errors[] = __( 'API Secret should start with "cs_"', 'woo-stock-sync' );
 		}
+
+		// Check that API key or secret aren't from this site
+		if ( $this->api_cred_exists( 'consumer_key', wc_api_hash( $this->key ) ) ) {
+			$this->errors[] = sprintf( __( 'You have entered API key from this site. Enter API key from %s.', 'woo-stock-sync' ), $this->url );
+		}
+
+		if ( $this->api_cred_exists( 'consumer_secret', $this->secret ) ) {
+			$this->errors[] = sprintf( __( 'You have entered API secret from this site. Enter API secret from %s.', 'woo-stock-sync' ), $this->url );
+		}
+	}
+
+	/**
+	 * Get if API key or secret exists on this site
+	 */
+	private function api_cred_exists( $field, $value ) {
+		global $wpdb;
+
+		return $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(key_id)
+				FROM {$wpdb->prefix}woocommerce_api_keys
+				WHERE {$field} = %s",
+				$value
+			)
+		) > 0;
 	}
 
 	/**

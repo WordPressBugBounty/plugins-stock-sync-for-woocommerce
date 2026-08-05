@@ -85,7 +85,7 @@ class Woo_Stock_Sync_Logger {
 	/**
 	 * Update log message about whether or not site syncing succeeded
 	 */
-	public static function log_update( $id, $site_keys, $result, $errors = [], $level = '', $error_data = [] ) {
+	public static function log_update( $id, $site_keys, $result, $errors = [], $level = '', $error_data = [], $duration = false ) {
 		if ( empty( $id ) ) {
 			return;
 		}
@@ -110,7 +110,8 @@ class Woo_Stock_Sync_Logger {
 					'level' => $level,
 					'result' => $result,
 					'errors' => $errors,
-					'error_data' => $error_data
+					'error_data' => $error_data,
+					'duration' => $duration,
 				];
 			}
 
@@ -386,6 +387,7 @@ class Woo_Stock_Sync_Logger {
 		foreach ( woo_stock_sync_sites() as $site ) {
 			$data = isset( $results[$site['key']] ) ? $results[$site['key']] : false;
 			$errors = isset( $data->errors ) ? (array) $data->errors : [];
+			$duration = isset( $data->duration ) ? $data->duration : false;
 			$errors_str = implode( "\n", $errors );
 			$msg = '';
 			$level = '';
@@ -420,6 +422,7 @@ class Woo_Stock_Sync_Logger {
 				'level' => $level,
 				'msg' => $msg,
 				'more_url' => $more_url,
+				'duration' => $duration,
 			];
 		}
 

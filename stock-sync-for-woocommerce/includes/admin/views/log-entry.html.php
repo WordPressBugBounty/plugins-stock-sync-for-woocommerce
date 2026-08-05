@@ -60,6 +60,10 @@
 							<span class="dashicons dashicons-info"></span> <?php echo esc_html( $row['msg'] ); ?>
 						</span>
 					<?php } ?>
+
+					<?php if ( isset( $row['duration'] ) && $row['duration'] ) { ?>
+						<div class=""><small><?php printf( __( 'in %.1f seconds', 'woo-stock-sync' ), floatval( $row['duration'] ) ); ?></small></div>
+					<?php } ?>
 				</td>
 			</tr>
 		<?php } ?>
