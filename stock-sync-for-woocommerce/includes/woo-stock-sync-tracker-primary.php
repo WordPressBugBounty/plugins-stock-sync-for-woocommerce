@@ -155,6 +155,16 @@ class Woo_Stock_Sync_Tracker_Primary {
 			return false;
 		}
 
+		if ( strlen( $product->get_sku( 'edit' ) ) === 0 ) {
+			if ( $log_id ) {
+				foreach ( wss_get_site_keys() as $site_key ) {
+					Woo_Stock_Sync_Logger::log_update( $log_id, $site_key, false, [ __( "SKU is not set", 'woo-stock-sync' ) ], 'warning' );
+				}
+			}
+
+			return false;
+		}	
+
 		// Run syncing
 		wss_dispatch_sync( [
 			'product_id' => $product->get_id(),

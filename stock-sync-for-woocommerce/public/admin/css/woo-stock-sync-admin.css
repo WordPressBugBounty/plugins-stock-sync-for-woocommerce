@@ -284,6 +284,10 @@ td.forminp-wss_credentials_table > table .pro-sites {
   padding: 0 5px;
 }
 
+#woo-stock-sync-report table td.wss-actions .wss-icon {
+  vertical-align: middle;
+}
+
 /**
  * Log table
  */

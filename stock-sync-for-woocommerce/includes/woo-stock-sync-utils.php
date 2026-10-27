@@ -83,9 +83,9 @@ function wss_product_queries( $wp_query_args, $query_vars, $data_store_cpt ) {
 	// Mismatch query
 	if ( ! empty( $query_vars['_wss_stock_mismatch'] ) ) {
 		$wp_query_args['meta_query'][] = [
-			'key' => '_woo_stock_sync_data',
-			'value' => '"status";s:8:"mismatch"',
-			'compare' => 'LIKE',
+			'key' => '_wss_mismatch',
+			'value' => '1',
+			'compare' => '=',
 		];
 	}
 
@@ -397,6 +397,16 @@ function wss_update_ext_qty( $product, $site_key, $ext_qty, $ext_id, $ext_name, 
 	// status filtering. In future it would be wise
 	// to atomize all data instead of serialized blob
 	update_post_meta( $product_id, '_wss_status_' . $site_key, 'present' );
+
+	// Update mismatch status
+	$has_mismatch = '0';
+	foreach ( woo_stock_sync_sites() as $site ) {
+		if ( isset( $data[$site['key']]['status'] ) && $data[$site['key']]['status'] === 'mismatch' ) {
+			$has_mismatch = '1';
+			break;
+		}
+	}
+	update_post_meta( $product_id, '_wss_mismatch', $has_mismatch );
 }
 
 /**
@@ -417,16 +427,21 @@ function wss_update_mismatch_data( $product, $site_key ) {
 
 	$data = (array) get_post_meta( $product_id, '_woo_stock_sync_data', true );
 
-	$current_status = isset( $data[$site_key]['status'] ) ? $data[$site_key]['status'] : null;
-	$current_qty = isset( $data[$site_key]['qty'] ) ? $data[$site_key]['qty'] : null;
+	// Update mismatch data
+	$has_mismatch = '0';
+	foreach ( woo_stock_sync_sites() as $site ) {
+		$site_key = $site['key'];
 
-	$new_status = ( $current_qty === null || $current_qty != $product->get_stock_quantity( 'edit' ) ) ? 'mismatch' : 'ok';
+		$current_qty = isset( $data[$site_key]['qty'] ) ? $data[$site_key]['qty'] : null;
 
-	if ( $current_status != $new_status ) {
-		$data[$site_key]['status'] = $new_status;
+		$data[$site_key]['status'] = ( $current_qty != $product->get_stock_quantity( 'edit' ) ) ? 'mismatch' : 'ok';
 
-		update_post_meta( $product_id, '_woo_stock_sync_data', $data );
+		if ( $data[$site_key]['status'] === 'mismatch' ) {
+			$has_mismatch = '1';
+		}
 	}
+	update_post_meta( $product_id, '_wss_mismatch', $has_mismatch );
+	update_post_meta( $product_id, '_woo_stock_sync_data', $data );
 }
 
 /**
@@ -461,6 +476,11 @@ function woo_stock_sync_sites() {
 				'api_secret' => $api_secret,
 			];
 		}
+	}
+
+	// Cut off other sites (if this has been a primary inventory before and there are other sites defined)
+	if ( wss_is_secondary() && apply_filters( 'wss_single_primary', true ) ) {
+		$sites = [ $sites[0] ];
 	}
 
 	return $sites;
@@ -679,12 +699,14 @@ function wss_get_pro_url() {
  * Augment log data with user ID, IP address etc.
  */
 function wss_augment_log_data( $data ) {
-	$host = ( empty( $_SERVER['HTTPS'] ) ? 'http' : 'https' ) . "://{$_SERVER['HTTP_HOST']}";
+	$is_ssl = isset( $_SERVER['HTTPS'] ) && ! empty( $_SERVER['HTTPS'] );
+	$host = isset( $_SERVER['HTTP_HOST'] ) ? $_SERVER['HTTP_HOST'] : '';
+	$host = ( $is_ssl ? 'http' : 'https' ) . "://{$host}";
 
 	$augment = [
 		'remote_addr' => isset( $_SERVER['REMOTE_ADDR'] ) ? $_SERVER['REMOTE_ADDR'] : '',
 		'request_uri' => '',
-		'referer' => sprintf( '%s%s', $host, wp_get_raw_referer() ),
+		'referer' => wp_get_raw_referer(),
 		'is_cli' => defined( 'WP_CLI' ) && WP_CLI,
 		'user_id' => 0,
 		'username' => __( 'Anonymous', 'woo-stock-sync' ),

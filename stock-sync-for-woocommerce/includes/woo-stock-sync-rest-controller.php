@@ -13,32 +13,6 @@ class WC_REST_Stock_Sync_Controller extends WC_REST_Products_V2_Controller {
 	protected $rest_base = 'stock-sync';
 
 	public function register_routes() {
-		// todo retired, remove at some point
-		register_rest_route(
-			$this->namespace,
-			'/' . $this->rest_base . '/(?P<sku>.+)',
-			array(
-				array(
-					'methods' => WP_REST_Server::READABLE,
-					'callback' => array( $this, 'get_item' ),
-					'permission_callback' => array( $this, 'get_item_permissions_check' ),
-					'args' => array(
-						'context' => $this->get_context_param(
-							array(
-								'default' => 'edit',
-							)
-						),
-					),
-				),
-				array(
-					'methods' => WP_REST_Server::EDITABLE,
-					'callback' => array( $this, 'update_item' ),
-					'permission_callback' => array( $this, 'update_item_permissions_check' ),
-				),
-				'schema' => array( $this, 'get_public_item_schema' ),
-			)
-		);
-
 		register_rest_route(
 			$this->namespace,
 			'/' . $this->rest_base . '-batch',
@@ -232,6 +206,32 @@ class WC_REST_Stock_Sync_Controller extends WC_REST_Products_V2_Controller {
 		$request->set_param( 'context', 'edit' );
 		$response = $this->prepare_object_for_response( $object, $request );
 		return rest_ensure_response( $response );
+	}
+
+	/**
+	 * Prepare a single product output for response.
+	 *
+	 * @param WC_Product         $object  Object data.
+	 * @param WP_REST_Request $request Request object.
+	 *
+	 * @since  3.0.0
+	 * @return WP_REST_Response
+	 */
+	public function prepare_object_for_response( $object, $request ) {
+		$data = [
+			'id' => $object->get_id(),
+			'sku' => $object->get_sku( 'edit' ),
+			'stock_quantity' => $object->get_stock_quantity( 'edit' ),
+			'name' => $object->get_name( 'edit' ),
+			'parent_id' => $object->get_parent_id( 'edit' )
+		];
+
+		// @phpstan-ignore-next-line property.notFound (Deliberately dynamic to avoid adding inherited state that can fatal subclasses.)
+		$this->request = $request;
+
+		$response = rest_ensure_response( $data );
+
+		return $response;
 	}
 
 	/**

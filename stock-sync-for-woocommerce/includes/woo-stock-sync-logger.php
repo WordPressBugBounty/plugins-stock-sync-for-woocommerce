@@ -85,7 +85,7 @@ class Woo_Stock_Sync_Logger {
 	/**
 	 * Update log message about whether or not site syncing succeeded
 	 */
-	public static function log_update( $id, $site_keys, $result, $errors = [], $level = '', $error_data = [], $duration = false ) {
+	public static function log_update( $id, $site_keys, $result, $errors = [], $level = '', $error_data = [], $duration = false, $total_duration = false ) {
 		if ( empty( $id ) ) {
 			return;
 		}
@@ -100,6 +100,10 @@ class Woo_Stock_Sync_Logger {
 		if ( $record ) {
 			if ( ! isset( $record->data->sync_results ) ) {
 				$record->data->sync_results = [];
+			}
+
+			if ( $total_duration ) {
+				$record->data->total_duration = $total_duration;
 			}
 
 			// Cast to array
@@ -186,6 +190,22 @@ class Woo_Stock_Sync_Logger {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Delete single log entry
+	 */
+	public static function delete( $id ) {
+		global $wpdb;
+
+		$table = self::table();
+
+		$query = $wpdb->prepare(
+			"DELETE FROM {$table} WHERE id = %d",
+			$id
+		);
+
+		return $wpdb->query( $query );
 	}
 
 	/**
@@ -371,6 +391,13 @@ class Woo_Stock_Sync_Logger {
 			$rows[] = [
 				'label' => __( 'CLI', 'woo-stock-sync' ),
 				'value' => $log->data->is_cli ? __( 'Yes', 'woo-stock-sync' ) : __( 'No', 'woo-stock-sync' ),
+			];
+		}
+
+		if ( isset( $log->data->total_duration ) ) {
+			$rows[] = [
+				'label' => __( 'Total duration', 'woo-stock-sync' ),
+				'value' => sprintf( __( '%.1f seconds', 'woo-stock-sync' ), floatval( $log->data->total_duration ) ),
 			];
 		}
 

@@ -120,7 +120,7 @@ class WC_Settings_Woo_Stock_Sync extends WC_Settings_Page {
 			$supported_api_credentials = apply_filters( 'woo_stock_sync_supported_api_credentials', 1 );
 		} else {
 			$title = __ ( 'API Credentials of Primary Inventory', 'woo-stock-sync' );
-			$supported_api_credentials = 1;
+			$supported_api_credentials = apply_filters( 'woo_stock_sync_supported_primary_api_credentials', 1 );
 		}
 		
 		// Add hidden fields for API credentials so they get processed in WC_Admin_Settings

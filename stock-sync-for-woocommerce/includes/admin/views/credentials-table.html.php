@@ -49,7 +49,7 @@
           </tr>
         <?php } ?>
       </tbody>
-      <?php if ( wss_is_primary() ) { ?>
+      <?php if ( count( $sites ) > 1 ) { ?>
         <tfoot>
           <tr>
             <td colspan="5">

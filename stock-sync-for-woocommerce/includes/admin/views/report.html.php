@@ -92,34 +92,36 @@
       </form>
 
       <div id="wss-error-dialog" style="display:none;">
-        <?php esc_html_e( 'The process was aborted by the server.', 'woo-stock-sync' ); ?>
+        <div style="overflow-y:scroll;max-height:700px;">
+          <?php esc_html_e( 'The process was aborted by the server.', 'woo-stock-sync' ); ?>
 
-        <div class="wss-error-details">
-          <h3><?php esc_html_e( 'Error Details', 'woo-stock-sync' ); ?></h3>
-          <table class="wss-error-data-table">
-            <tr>
-              <th><?php esc_html_e( 'Error', 'woo-stock-sync' ); ?></th>
-              <td>{{ errorMsg }}</td>
-            </tr>
-            <tr>
-              <th><?php esc_html_e( 'Code', 'woo-stock-sync' ); ?></th>
-              <td>{{ errorCode }}</td>
-            </tr>
-            <tr>
-              <th><?php esc_html_e( 'Headers', 'woo-stock-sync' ); ?></th>
-              <td>
-                <div v-for="(header, headerCode) in errorHeaders">
-                  <span>{{ headerCode }}: {{ header }}</span>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <th><?php esc_html_e( 'Body', 'woo-stock-sync' ); ?></th>
-              <td>
-                <pre>{{ errorBody }}</pre>
-              </td>
-            </tr>
-          </table>
+          <div class="wss-error-details" v-for="errorSite in errors">
+            <h3><?php esc_html_e( 'Error Details', 'woo-stock-sync' ); ?> - {{ errorSite.url }}</h3>
+            <table class="wss-error-data-table">
+              <tr>
+                <th><?php esc_html_e( 'Error', 'woo-stock-sync' ); ?></th>
+                <td>{{ errorSite.msg }}</td>
+              </tr>
+              <tr>
+                <th><?php esc_html_e( 'Code', 'woo-stock-sync' ); ?></th>
+                <td>{{ errorSite.data.code }}</td>
+              </tr>
+              <tr>
+                <th><?php esc_html_e( 'Headers', 'woo-stock-sync' ); ?></th>
+                <td>
+                  <div v-for="(header, headerCode) in errorSite.data.headers">
+                    <span>{{ headerCode }}: {{ header }}</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <th><?php esc_html_e( 'Body', 'woo-stock-sync' ); ?></th>
+                <td>
+                  <pre>{{ errorSite.data.body }}</pre>
+                </td>
+              </tr>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -136,10 +138,7 @@
         status: 'pending',
         sites: <?php echo json_encode( array_values( $sites ) ); ?>,
         products: <?php echo json_encode( $products_json ); ?>,
-        errorMsg: '',
-        errorCode: '',
-        errorBody: '',
-        errorHeaders: [],
+        errors: []
       },
       methods: {
         /**
@@ -153,47 +152,40 @@
 
           var self = this;
 
-          this.pushQty( product, 0 );
+          this.pushQty( product );
         },
         /**
          * Push quantity to external sites
          */
-        pushQty: function( product, siteIndex ) {
+        pushQty: function( product ) {
           var self = this;
-          var site = this.sites[siteIndex];
-          var siteKey = site['key'];
-
-          this.resetErrorData();
+          this.errors = [];
 
           jQuery.ajax( {
             type: 'post',
             url: woo_stock_sync.ajax_urls.push,
             data: {
               product_id: product.id,
-              site_key: siteKey,
               security: woo_stock_sync.nonces.push
             },
             dataType: 'json',
             beforeSend: function() {
-              product.site_qtys[siteKey].processing = true;
+              _.each(product.site_qtys, function(site) {
+                site.processing = true;
+              });
+
               product.status = 'default';
             },
             success: function( response ) {
-              product.site_qtys[siteKey].processing = false;
+              _.each(product.site_qtys, function(site) {
+                site.processing = false;
+              });
 
-              if ( response.status ) {
+              if ( ! response.errors ) {
                 product.site_qtys = response.site_qtys;
-
-                if ( ( siteIndex + 1 ) < self.sites.length ) {
-                  self.pushQty( product, ( siteIndex + 1 ) );
-                } else {
-                  product.status = 'completed';
-                }
+                product.status = 'completed';
               } else {
-                self.errorMsg = response.errors.join("\n");
-                self.errorCode = response.error_data.code;
-                self.errorHeaders = response.error_data.headers;
-                self.errorBody = response.error_data.body;
+                self.errors = response.errors;
                 self.displayErrorDialog();
               }
             },
@@ -217,6 +209,7 @@
             closeOnEscape: true,
             resizable: false,
             draggable: false,
+            position: { my: "center top", at: "center top+50", of: window },
             modal: true,
             open: function(event, ui) { 
               jQuery('.ui-widget-overlay').bind('click', function() { 
@@ -224,15 +217,6 @@
               }); 
             }
           });
-        },
-        /**
-         * Reset error data
-         */
-        resetErrorData: function() {
-          this.errorMsg = '';
-          this.errorCode = '';
-          this.errorBody = '';
-          this.errorHeaders = '';
         },
         /**
          * Edit stock quantity
@@ -245,8 +229,7 @@
          */
         updateQty: function( product ) {
           var self = this;
-
-          this.resetErrorData();
+          this.errors = [];
 
           jQuery.ajax( {
             type: 'post',

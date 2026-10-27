@@ -313,6 +313,12 @@ $border-color: #dee2e6;
       min-height: 24px;
       padding: 0 5px;
     }
+
+    td.wss-actions {
+      .wss-icon {
+        vertical-align: middle;
+      }
+    }
   }
 }
 

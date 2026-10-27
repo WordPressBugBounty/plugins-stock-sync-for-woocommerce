@@ -40,20 +40,13 @@ class Woo_Stock_Sync_Process extends WP_Async_Request {
 	public function handle( $rows = null ) {
 		$sites = woo_stock_sync_sites();
 
-		// Cut off other sites (if this has been a primary inventory before and there are other sites defined)
-		if ( wss_is_secondary() ) {
-			$sites = [$sites[0]];
-		}
-
-		foreach ( $sites as $site ) {
-			$this->push_multiple( $site, false, $rows );
-		}
+		$this->push_multiple( $sites, false, $rows );
 	}
 
 	/**
 	 * Push multiple changes to a site
 	 */
-	private function push_multiple( $site, $retry = false, $rows = null, $idempotency_key = false ) {
+	private function push_multiple( $sites, $retry = false, $rows = null, $idempotency_key = false ) {
 		if ( ! isset( $rows ) ) {
 			$rows = $_POST['bulk_changes'];
 		}
@@ -81,12 +74,23 @@ class Woo_Stock_Sync_Process extends WP_Async_Request {
 		}
 
 		$api = new Woo_Stock_Sync_Api_Request();
-		$result = $api->push_multiple( $data, $site, $idempotency_key );
+		$responses = $api->push_multiple( $data, $sites, $idempotency_key, $retry );
 
-		// Request failed altogether, retry
-		if ( $result === false ) {
-			if ( ! $retry && apply_filters( 'woo_stock_sync_allow_retry', true, $site ) ) {
-				$this->push_multiple( $site, true, $rows, $idempotency_key );
+		// Retry failed requests
+		if ( ! $retry ) {
+			$retries = [];
+			foreach ( $responses as $site_key => $response ) {
+				if ( $response['error'] ) {
+					$site = wss_site_by_key( $site_key );
+
+					if ( $site ) {
+						$retries[] = $site;
+					}
+				}
+			}
+
+			if ( ! empty( $retries ) ) {
+				$this->push_multiple( $retries, true, $rows, $idempotency_key );
 			}
 		}
 	}
